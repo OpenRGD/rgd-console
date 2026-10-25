@@ -1,0 +1,44 @@
+name: Peripheral Manager Candidate Contracts
+on:
+  push:
+    paths:
+      - 'contracts/console/v1/peripheral-*.schema.json'
+      - 'examples/peripherals/**'
+      - 'services/api/src/peripherals.rs'
+      - 'services/api/src/main.rs'
+      - 'scripts/peripheral-contract.test.mjs'
+      - '.github/workflows/peripheral-contract.yml'
+  pull_request:
+    paths:
+      - 'contracts/console/v1/peripheral-*.schema.json'
+      - 'examples/peripherals/**'
+      - 'services/api/src/peripherals.rs'
+      - 'services/api/src/main.rs'
+      - 'scripts/peripheral-contract.test.mjs'
+      - '.github/workflows/peripheral-contract.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  examples-and-schema:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Check generic Peripheral Manager schema/examples/security invariants
+        run: node --test scripts/peripheral-contract.test.mjs
+
+  pure-rust-domain:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt
+      - name: Test only side-effect-free peripheral domain
+        run: cargo test --manifest-path services/api/Cargo.toml peripherals::tests
+      - name: Check formatting of peripheral Rust domain only
+        run: rustfmt --edition 2021 --check services/api/src/peripherals.rs

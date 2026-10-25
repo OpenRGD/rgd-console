@@ -287,6 +287,9 @@ pub enum ValidationError {
 pub fn validate_descriptor(d: &PeripheralDescriptor) -> Result<(), ValidationError> {
     if d.schema_version != DESCRIPTOR_SCHEMA { return Err(ValidationError::WrongSchema); }
     if d.actuation_enabled { return Err(ValidationError::MotorAuthorityNotAllowed); }
+    if d.source_kind == SourceKind::Unknown {
+        return Err(ValidationError::SourceNotPhysical);
+    }
     if d.robot_id.is_empty() || d.peripheral_id.is_empty() || d.display_name.is_empty()
         || d.binding.binding_ref.is_empty() || d.publisher.service_ref.is_empty()
         || d.publisher.host_id.is_empty() || d.publisher.resource_lock.is_empty()
@@ -362,10 +365,13 @@ pub fn validate_status(d: &PeripheralDescriptor, s: &PeripheralStatus) -> Result
     if s.device.presence == DevicePresence::Absent && s.controls.can_start {
         return Err(ValidationError::InconsistentStatus);
     }
-    let streams: HashSet<&str> = d.streams.iter().map(|x| x.stream_id.as_str()).collect();
+    let mut streams = HashSet::new();
     for stream in &s.streams {
-        if !streams.contains(stream.stream_id.as_str()) {
+        let Some(spec) = d.streams.iter().find(|x| x.stream_id == stream.stream_id) else {
             return Err(ValidationError::InvalidStream);
+        };
+        if !streams.insert(stream.stream_id.as_str()) {
+            return Err(ValidationError::DuplicateStream);
         }
         if stream.state == ObservationState::NoSource
             && (stream.last_received_at.is_some() || stream.age_ms.is_some())
@@ -373,8 +379,12 @@ pub fn validate_status(d: &PeripheralDescriptor, s: &PeripheralStatus) -> Result
             return Err(ValidationError::InconsistentStatus);
         }
         if stream.state == ObservationState::Live
-            && (stream.source_kind != d.source_kind || stream.age_ms.is_none())
+            && (stream.source_kind != d.source_kind
+                || stream.last_received_at.is_none()
+                || stream.age_ms.is_none_or(|age| age > spec.freshness_ms))
         {
+            // Never publish a LIVE badge for a stale/undated measurement,
+            // even when systemd confirms the acquisition service is running.
             return Err(ValidationError::InconsistentStatus);
         }
     }
@@ -387,6 +397,17 @@ pub fn validate_status(d: &PeripheralDescriptor, s: &PeripheralStatus) -> Result
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Admission { DispatchToAuthorizedBroker, AlreadyAtRequestedState }
 
+/// Same canonical ID shape as the JSON schema, not just 36 ASCII bytes.
+fn request_id_ok(id: &str) -> bool {
+    let b = id.as_bytes();
+    b.len() == 36
+        && [8, 13, 18, 23].iter().all(|index| b[*index] == b'-')
+        && (0..36).filter(|index| ![8, 13, 18, 23].contains(index))
+            .all(|index| b[index].is_ascii_hexdigit())
+        && (b'1'..=b'8').contains(&b[14])
+        && matches!(b[19], b'8' | b'9' | b'a' | b'A' | b'b' | b'B')
+}
+
 pub fn admit_action(
     d: &PeripheralDescriptor,
     s: &PeripheralStatus,
@@ -398,8 +419,7 @@ pub fn admit_action(
     if request.robot_id != d.robot_id || request.peripheral_id != d.peripheral_id {
         return Err(ValidationError::WrongIdentity);
     }
-    if !request.request_id.chars().all(|c| c.is_ascii_hexdigit() || c == '-')
-        || request.request_id.len() != 36 {
+    if !request_id_ok(&request.request_id) {
         return Err(ValidationError::InvalidRequestId);
     }
     if request.expected_status_revision != s.status_revision {
@@ -425,7 +445,9 @@ pub fn admit_action(
         _ => {}
     }
     if request.action == AcquisitionAction::Start
-        && (s.device.presence != DevicePresence::Present || !s.device.binding_verified)
+        && (d.binding.verification != BindingVerification::OperatorVerified
+            || s.device.presence != DevicePresence::Present
+            || !s.device.binding_verified)
     {
         return Err(ValidationError::DeviceUnavailable);
     }
@@ -498,7 +520,7 @@ mod tests {
 
     #[test]
     fn revision_and_device_binding_gate_any_acquisition_start() {
-        let d = imu();
+        let mut d = imu();
         let mut s = unavailable();
         s.publisher.manager_available = true;
         s.publisher.lifecycle = PublisherLifecycle::Stopped;
@@ -509,6 +531,10 @@ mod tests {
         assert_eq!(admit_action(&d, &s, &request()), Err(ValidationError::DeviceUnavailable));
         s.device.presence = DevicePresence::Present;
         s.device.binding_verified = true;
+        // A runtime "present" reading does not automatically verify the
+        // registered host binding path/identity.
+        assert_eq!(admit_action(&d, &s, &request()), Err(ValidationError::DeviceUnavailable));
+        d.binding.verification = BindingVerification::OperatorVerified;
         assert_eq!(admit_action(&d, &s, &request()), Ok(Admission::DispatchToAuthorizedBroker));
         let mut stale = request();
         stale.expected_status_revision = 9;
@@ -526,6 +552,39 @@ mod tests {
         s.publisher.manager_available = true;
         s.controls.can_start = true;
         assert_eq!(admit_action(&d, &s, &request()), Err(ValidationError::MissingCapability));
+    }
+
+    #[test]
+    fn a_live_status_requires_a_measured_timestamp_under_stream_freshness() {
+        let d = imu();
+        let mut s = unavailable();
+        s.publisher.lifecycle = PublisherLifecycle::Running;
+        s.publisher.manager_available = true;
+        s.streams[0].state = ObservationState::Live;
+        s.streams[0].source_kind = SourceKind::Physical;
+        s.streams[0].last_received_at = Some("2026-10-25T14:00:00Z".into());
+        s.streams[0].age_ms = Some(3001);
+        assert_eq!(validate_status(&d, &s), Err(ValidationError::InconsistentStatus));
+        s.streams[0].age_ms = Some(2999);
+        assert_eq!(validate_status(&d, &s), Ok(()));
+        s.streams[0].age_ms = None;
+        assert_eq!(validate_status(&d, &s), Err(ValidationError::InconsistentStatus));
+    }
+
+    #[test]
+    fn rejected_uuid_and_unverified_binding_never_issue_command() {
+        let d = imu();
+        let mut s = unavailable();
+        s.publisher.manager_available = true;
+        s.publisher.lifecycle = PublisherLifecycle::Stopped;
+        s.publisher.desired_state = DesiredState::Stopped;
+        s.device.presence = DevicePresence::Present;
+        s.device.binding_verified = true;
+        s.controls.can_start = true;
+        let mut cmd = request();
+        cmd.request_id = "this-is-not-an-operator-uuid".into();
+        assert_eq!(admit_action(&d, &s, &cmd), Err(ValidationError::InvalidRequestId));
+        assert_eq!(admit_action(&d, &s, &request()), Err(ValidationError::DeviceUnavailable));
     }
 
     #[test]

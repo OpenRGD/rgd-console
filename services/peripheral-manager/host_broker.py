@@ -173,7 +173,7 @@ class Broker:
         self.revisions = {key: secrets.randbelow((1 << 48) - 1) + 1
                           for key in self.services}
         self.signatures: dict[tuple[str, str], tuple] = {}
-        self.history: OrderedDict[str, dict] = OrderedDict()
+        self.history: OrderedDict[str, tuple[str, dict]] = OrderedDict()
 
     def _status(self, key: tuple[str, str]) -> dict:
         svc = self.services[key]
@@ -220,8 +220,16 @@ class Broker:
                 "peripheral_id", "action", "expected_status_revision"}
         if set(req) - keys or not all(k in req for k in keys - {"expected_status_revision"}):
             return self._reply(req, None, "rejected", "invalid_request")
-        if req["schema_version"] != SCHEMA or req["action"] not in VALID_ACTIONS:
+        if (not isinstance(req["schema_version"], str)
+                or not isinstance(req["action"], str)
+                or req["schema_version"] != SCHEMA
+                or req["action"] not in VALID_ACTIONS):
             return self._reply(req, None, "rejected", "invalid_action")
+        if (not isinstance(req["robot_id"], str)
+                or not isinstance(req["peripheral_id"], str)
+                or not SAFE_ID.fullmatch(req["robot_id"])
+                or not SAFE_ID.fullmatch(req["peripheral_id"])):
+            return self._reply(req, None, "rejected", "invalid_identity")
         if not isinstance(req["request_id"], str) or not UUID.fullmatch(req["request_id"]):
             return self._reply(req, None, "rejected", "invalid_request_id")
         key = req["robot_id"], req["peripheral_id"]
@@ -238,8 +246,8 @@ class Broker:
         if req["action"] == "status":
             return self._reply(req, state, "status")
         if req["request_id"] in self.history:
-            past = self.history[req["request_id"]]
-            if (past["robot_id"], past["peripheral_id"]) != key:
+            prior_action, past = self.history[req["request_id"]]
+            if (past["robot_id"], past["peripheral_id"]) != key or prior_action != req["action"]:
                 return self._reply(req, state, "rejected", "request_id_reused")
             return past.copy()
         if req["expected_status_revision"] != state["status_revision"]:
@@ -269,7 +277,7 @@ class Broker:
             after = self._status(key)
             result = self._reply(req, after, "accepted" if success else "failed",
                                  None if success else "systemd_action_failed")
-        self.history[req["request_id"]] = result.copy()
+        self.history[req["request_id"]] = (req["action"], result.copy())
         self.history.move_to_end(req["request_id"])
         if len(self.history) > MAX_HISTORY:
             self.history.popitem(last=False)
@@ -308,7 +316,7 @@ def peer_allowed(conn: socket.socket, expected_uid: int | None = None) -> bool:
         return False
 
 
-def serve(manager: Broker, path: Path) -> None:
+def serve(manager: Broker, path: Path, *, stop_event=None, register_handlers=True) -> None:
     ensure_socket_dir(path)
     if path.exists() or path.is_symlink():
         raise FileExistsError("existing broker socket: refuse to replace a live/unknown socket")
@@ -323,11 +331,13 @@ def serve(manager: Broker, path: Path) -> None:
         def on_stop(_signum, _frame):
             nonlocal stopping
             stopping = True
-        previous_term = signal.signal(signal.SIGTERM, on_stop)
-        previous_int = signal.signal(signal.SIGINT, on_stop)
+        previous_term = previous_int = None
+        if register_handlers:
+            previous_term = signal.signal(signal.SIGTERM, on_stop)
+            previous_int = signal.signal(signal.SIGINT, on_stop)
         try:
             print("Peripheral Host Manager: same-UID unix socket active; no auto-start", flush=True)
-            while not stopping:
+            while not stopping and not (stop_event is not None and stop_event.is_set()):
                 try:
                     conn, _ = listener.accept()
                 except socket.timeout:
@@ -348,8 +358,9 @@ def serve(manager: Broker, path: Path) -> None:
                     reply = json.dumps(answer, separators=(",", ":")).encode("utf-8") + b"\n"
                     conn.sendall(reply)
         finally:
-            signal.signal(signal.SIGTERM, previous_term)
-            signal.signal(signal.SIGINT, previous_int)
+            if register_handlers:
+                signal.signal(signal.SIGTERM, previous_term)
+                signal.signal(signal.SIGINT, previous_int)
     finally:
         listener.close()
         if path.exists() and stat.S_ISSOCK(path.lstat().st_mode):

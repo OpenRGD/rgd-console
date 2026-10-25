@@ -27,21 +27,21 @@ From **Robot Live → TELEMETRIA → Periferiche → IMU (Paky-01)**, allow a lo
 Use a **rootless Ubuntu host-owned user service + narrowly scoped host broker**, not an arbitrary subprocess launch from Docker.
 
 ```text
-Local browser (Robot Live → IMU)
+Local browser (Robot Live → Periferiche → IMU)
       |
-      | GET  /api/v1/robots/paky-01/peripherals/imu/publisher
-      | POST /api/v1/robots/paky-01/peripherals/imu/publisher
-      |      {"desired_state":"running"|"stopped"}
+      | GET  /api/v1/robots/{robot_id}/peripherals[/{peripheral_id}]
+      | POST /api/v1/robots/{robot_id}/peripherals/{peripheral_id}/actions
+      |      {"action":"acquisition.start"|"acquisition.stop",
+      |       "request_id":"<uuid>","expected_status_revision":N}
       v
 Console Rust/Axum API in isolated Docker
       |
-      | opt-in, versioned **Unix domain socket** client only
-      | /run/openrgd-imu-control/imu-manager.sock
+      | opt-in, generic Peripheral Manager Unix-socket protocol
       | no Docker socket, no host /dev and no arbitrary shell access
       v
-Rootless host IMU control broker (operator-owned systemd user service)
+Rootless host peripheral broker (allowlisted services + ownership)
       |
-      | exact fixed systemd unit start/stop/status, not command strings
+      | for THIS installed descriptor: exact systemd unit start/stop/status
       v
 systemd --user: openrgd-paky01-imu.service
       |
@@ -52,7 +52,7 @@ existing imu_publish.py → existing token-protected Console POST
       +→ read-only Console UI + Chronoscope Pulse fan-out
 ```
 
-**Important:** these REST routes and Unix socket are **PROPOSED**, not implemented in current Console. No new endpoints are needed for *reading* physical IMU observations; these new control routes would concern only the lifecycle of its separate process.
+**Important:** the **generic** Peripheral Manager routes and Unix socket are **PROPOSED**, not implemented in current Console. No new endpoints are needed for *reading* physical IMU observations; future lifecycle endpoints concern only the owning acquisition service, never robot motion.
 
 ### Why not simpler implementations?
 

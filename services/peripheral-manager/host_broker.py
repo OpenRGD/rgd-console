@@ -67,7 +67,8 @@ def read_allowlist(path: Path, uid: int | None = None) -> dict:
         raise ValueError("allowlist_schema_invalid")
     keys: set[tuple[str, str]] = set()
     units: set[str] = set()
-    resources: set[tuple[str, str]] = set()
+    resources: set[str] = set()
+    devices: set[str] = set()
     for row in parsed["services"]:
         expected = {"robot_id", "peripheral_id", "service_ref",
                     "device_by_path", "usb_vid_pid", "resource_lock"}
@@ -86,12 +87,15 @@ def read_allowlist(path: Path, uid: int | None = None) -> dict:
         if not re.fullmatch(r"[a-z][a-z0-9:_-]{0,127}", row["resource_lock"]):
             raise ValueError("invalid_resource_lock")
         key = (row["robot_id"], row["peripheral_id"])
-        resource = (row["device_by_path"], row["resource_lock"])
-        if key in keys or row["service_ref"] in units or resource in resources:
+        resource = row["resource_lock"]
+        device_path = row["device_by_path"]
+        if (key in keys or row["service_ref"] in units
+                or resource in resources or device_path in devices):
             raise ValueError("duplicate_exclusive_owner")
         keys.add(key)
         units.add(row["service_ref"])
         resources.add(resource)
+        devices.add(device_path)
     return parsed
 
 

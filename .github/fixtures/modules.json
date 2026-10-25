@@ -1,0 +1,60 @@
+{
+  "registry_version": "console.modules.v1",
+  "modules": [
+    {
+      "manifest_version": "console.module.v1",
+      "id": "org.openrgd.console.observability",
+      "version": "0.1.0",
+      "status": "installed",
+      "origin": "bundled",
+      "compatibility": {
+        "console_api": "console.v1"
+      },
+      "dependencies": [],
+      "capabilities": [
+        "telemetry.read",
+        "events.read",
+        "robots.read"
+      ],
+      "permissions": [
+        "read:telemetry",
+        "read:events",
+        "read:robots"
+      ]
+    },
+    {
+      "manifest_version": "console.module.v1",
+      "id": "org.openrgd.console.simulator",
+      "version": "0.1.0",
+      "status": "installed",
+      "origin": "bundled",
+      "compatibility": {
+        "console_api": "console.v1"
+      },
+      "dependencies": [
+        "org.openrgd.console.observability"
+      ],
+      "capabilities": [
+        "telemetry.publish.simulated"
+      ],
+      "permissions": [
+        "write:simulated-telemetry"
+      ]
+    },
+    {
+      "manifest_version": "console.module.v1",
+      "id": "org.openrgd.console.somatic-bridge",
+      "version": "0.0.0",
+      "status": "planned_not_installed",
+      "origin": "roadmap",
+      "compatibility": {
+        "console_api": "console.v1"
+      },
+      "dependencies": [
+        "org.openrgd.console.observability"
+      ],
+      "capabilities": [],
+      "permissions": []
+    }
+  ]
+}

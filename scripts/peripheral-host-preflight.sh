@@ -124,10 +124,10 @@ fi
 
 heading 'EXISTING IMU PUBLISHER PROCESS / IDENTITY ONLY'
 if command -v pgrep >/dev/null 2>&1; then
-  IDS="$(pgrep -f '[p]ython[^[:space:]]*.*imu_publish.py|[i]mu_publish.py' | tr '\n' ' ' || true)"
+  IDS="$(pgrep -f '[p]ython[^[:space:]]*.*imu_publish.py|[i]mu_publish.py' | paste -sd, - || true)"
   if [ -n "$IDS" ]; then
     # No command lines, process environment, tokens or arguments are printed.
-    ps -o pid,ppid,stat,etime,comm -p $(echo "$IDS" | tr ' ' ',') 2>/dev/null || true
+    ps -o pid,ppid,stat,etime,comm -p "$IDS" 2>/dev/null || true
   else
     echo 'No imu_publish.py process detected'
   fi

@@ -1,0 +1,162 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://openrgd.org/candidate/console/visual-feedback-host-report.v0.1",
+  "title": "Read-only Visual Feedback host report v0.1 candidate (not a physical light sensor)",
+  "description": "Proposed host-to-Console telemetry, NOT an implemented API route. Reported logical/BLE service status only.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "robot_id",
+    "source_id",
+    "session_id",
+    "sequence",
+    "host_receive_utc",
+    "host_monotonic_ns",
+    "service_running",
+    "adapter_id",
+    "ble_connected",
+    "desired",
+    "applied",
+    "last_error",
+    "physical_led_observed",
+    "non_actuating",
+    "clock_quality"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "console.visual-feedback.host-report.v0.1-candidate"
+    },
+    "robot_id": {
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9_-]{0,79}$"
+    },
+    "source_id": {
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9_-]{0,79}$"
+    },
+    "session_id": {
+      "type": "string",
+      "pattern": "^[a-fA-F0-9]{32}$"
+    },
+    "sequence": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 9223372036854776000
+    },
+    "host_receive_utc": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "host_monotonic_ns": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "service_running": {
+      "type": "boolean"
+    },
+    "adapter_id": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "maxLength": 80
+    },
+    "ble_connected": {
+      "type": "boolean"
+    },
+    "desired": {
+      "anyOf": [
+        {
+          "enum": [
+            "idle",
+            "listening",
+            "thinking",
+            "speaking",
+            "error",
+            "off"
+          ]
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "applied": {
+      "anyOf": [
+        {
+          "enum": [
+            "idle",
+            "listening",
+            "thinking",
+            "speaking",
+            "error",
+            "off"
+          ]
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "last_error": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "maxLength": 300
+    },
+    "physical_led_observed": {
+      "const": false
+    },
+    "non_actuating": {
+      "const": true
+    },
+    "clock_quality": {
+      "const": "host_receive_only_not_chronograph"
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "service_running": {
+            "const": false
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "adapter_id": {
+            "type": "null"
+          },
+          "ble_connected": {
+            "const": false
+          },
+          "desired": {
+            "type": "null"
+          },
+          "applied": {
+            "type": "null"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "ble_connected": {
+            "const": false
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "applied": {
+            "type": "null"
+          }
+        }
+      }
+    }
+  ]
+}

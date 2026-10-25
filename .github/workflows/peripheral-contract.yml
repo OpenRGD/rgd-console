@@ -8,6 +8,7 @@ on:
       - 'services/api/src/main.rs'
       - 'services/peripheral-manager/**'
       - 'scripts/peripheral-contract.test.mjs'
+      - 'scripts/peripheral-host-contract.test.mjs'
       - '.github/workflows/peripheral-contract.yml'
   pull_request:
     paths:
@@ -17,6 +18,7 @@ on:
       - 'services/api/src/main.rs'
       - 'services/peripheral-manager/**'
       - 'scripts/peripheral-contract.test.mjs'
+      - 'scripts/peripheral-host-contract.test.mjs'
       - '.github/workflows/peripheral-contract.yml'
 
 permissions:
@@ -31,7 +33,7 @@ jobs:
         with:
           node-version: '22'
       - name: Check generic Peripheral Manager schema/examples/security invariants
-        run: node --test scripts/peripheral-contract.test.mjs
+        run: node --test scripts/peripheral-contract.test.mjs scripts/peripheral-host-contract.test.mjs
 
   pure-rust-domain:
     runs-on: ubuntu-latest

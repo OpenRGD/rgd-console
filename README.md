@@ -2,6 +2,41 @@
 
 **Boot & Recovery implemented as an independent, non-actuating service.** This update builds directly on v0.4C Live and the mini-PC-tested v0.4B stack (Rust API, Next.js, Module Agent, Calibration). It does not modify any upstream OpenRGD repositories, Linux bootloader, GNOME login, CAN controller or Somatic Runtime.
 
+## PERIPH-0.2 — Host Peripheral Manager pilot (source only)
+
+This candidate branch adds the first **general-purpose, rootless Peripheral Host
+Manager**. The initial instance is Paky-01's WIT/CH340 IMU publisher. Device
+identity, one exclusive acquisition owner, observation streams and permitted
+host lifecycle actions use the same versioned PERIPH-0.1 contracts designed for
+future cameras and microphones.
+
+- `services/peripheral-manager/host_broker.py`: same-UID, 0600/0700
+  Unix socket; accepts only fixed identity+request ID and exact allowlisted
+  `systemctl --user show/start/stop` of a managed publisher. It never reads
+  USB serial, publishes samples or authorizes motors.
+- `install_paky01_imu.py`: **read-only preflight by default**. Opt-in manual
+  installation of one `systemd --user` IMU service and the generic host
+  broker requires `--install --confirm 'INSTALL PAKY01 IMU'`. Installation
+  **does not start or enable** either service; no Docker/API/UI change.
+- `control_cli.py`: private host-user status and explicitly confirmed
+  start/stop, with status-revision guard and idempotent requests.
+- Paired `italiarobotica/paky-01` branch
+  `feat/periph-0.2-imu-managed-publisher` adds opt-in `--continuous`
+  and graceful SIGTERM, preserving the previous 60-second default and
+  exclusive serial ownership.
+- Source-only tests use mocked systemd, udev, serial and private socket;
+  physical Paky-01 start/stop is **not yet accepted**.
+
+**Important:** the Console Docker API deliberately does **not** connect to
+the host broker yet. UID10001 cannot access the same-UID private socket.
+A separately reviewed authenticated local operator/delegation contract is
+required in PERIPH-0.3 before displaying operational buttons in the UI.
+Do not overwrite the local Console IMU v0.5 overlays with this branch.
+
+See [the host commissioning guide](docs/PERIPH-0.2-HOST-MANAGER-BENCH.md),
+[the generic contracts](docs/PERIPHERAL-MANAGER-CORE-v01.md), and
+[the first IMU adapter RFC](docs/P01-IMU-PUBLISHER-CONTROL-v01.md).
+
 ## New in v0.4D
 
 - Private `boot-manager` service on internal Docker network, starts with Docker after Ubuntu boot; separate persistent `boot_data` volume. It sees the Console's imported RGD files as **read-only** and retains selection/history across container restarts.

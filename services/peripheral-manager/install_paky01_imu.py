@@ -39,7 +39,8 @@ def safe_path(value: Path) -> str:
     return text
 
 
-def source_info(paky_repo: Path, console_repo: Path) -> dict:
+def source_info(paky_repo: Path, console_repo: Path,
+                python_bin: Path | None = None) -> dict:
     paky = paky_repo.expanduser().resolve(strict=True)
     console = console_repo.expanduser().resolve(strict=True)
     # Paths must be confined to the operator's HOME, not /tmp or root.
@@ -69,6 +70,16 @@ def source_info(paky_repo: Path, console_repo: Path) -> dict:
             or not re.fullmatch(r"[0-9a-f]{4}:[0-9a-f]{4}", str(vidpid))
             or baud != 9600):
         raise ValueError("unverified_imu_device_instance")
+    # A venv's bin/python is usually a symlink: preserve that pathname
+    # rather than resolve() to /usr/bin/python3 (which would lose its venv).
+    chosen_python = python_bin or Path("/usr/bin/python3")
+    chosen_python = chosen_python.expanduser().absolute()
+    if not chosen_python.is_file() or not os.access(chosen_python, os.X_OK):
+        raise ValueError("imu_python_interpreter_not_executable")
+    if (not SAFE_ABSOLUTE.fullmatch(str(chosen_python))
+            or not (chosen_python == Path("/usr/bin/python3")
+                    or chosen_python.is_relative_to(home))):
+        raise ValueError("imu_python_interpreter_outside_allowlist")
     secret = home / ".config/openrgd/imu-ingest-token"
     if secret.is_symlink() or not secret.exists():
         raise ValueError("publisher_token_missing")
@@ -79,6 +90,7 @@ def source_info(paky_repo: Path, console_repo: Path) -> dict:
         "imu_script": safe_path(imu_script),
         "broker_script": safe_path(broker_script),
         "baud": int(baud),
+        "python_bin": str(chosen_python),
         "device": device,
         "vidpid": vidpid,
     }
@@ -93,7 +105,7 @@ StartLimitIntervalSec=60
 StartLimitBurst=3
 [Service]
 Type=simple
-ExecStart=/usr/bin/python3 {info['imu_script']} --port {info['device']} --baud {info['baud']} --robot-id paky-01 --sensor-id torso-imu-01 --continuous --token-file %h/.config/openrgd/imu-ingest-token
+ExecStart={info['python_bin']} {info['imu_script']} --port {info['device']} --baud {info['baud']} --robot-id paky-01 --sensor-id torso-imu-01 --continuous --token-file %h/.config/openrgd/imu-ingest-token
 Restart=on-failure
 RestartSec=4
 TimeoutStopSec=5
@@ -195,12 +207,20 @@ def main(argv: list[str] | None = None) -> int:
                         default=Path.home() / "openrgd/repos/paky-01")
     parser.add_argument("--console-repo", type=Path,
                         default=Path.home() / "openrgd/repos/openrgd-console")
+    parser.add_argument("--python-bin", type=Path, default=Path("/usr/bin/python3"),
+                        help="Verified Python executable with pyserial (venv path supported)")
     parser.add_argument("--install", action="store_true",
                         help="Explicitly write systemd user units and allowlist; no start/enable")
     parser.add_argument("--confirm", default="")
     args = parser.parse_args(argv)
-    info = source_info(args.paky_repo, args.console_repo)
-    print("PERIPH-0.2 preflight: Paky-01 IMU identity and private token metadata OK")
+    info = source_info(args.paky_repo, args.console_repo, args.python_bin)
+    # Execute exactly the selected interpreter with a fixed import-only
+    # preflight, never the publisher (no device or HTTP operations here).
+    check = subprocess.run([info["python_bin"], "-c", "import serial"],
+                           capture_output=True, text=True, timeout=5, check=False)
+    if check.returncode != 0:
+        raise ValueError("pyserial_missing_for_selected_interpreter")
+    print("PERIPH-0.2 preflight: Paky-01 IMU identity, pyserial and private token metadata OK")
     print("Device binding: configured by-path and VID:PID from robot instance (not freshly probed)")
     print("No hardware opens, USB capture, Console POST or motors touched.")
     if not args.install:

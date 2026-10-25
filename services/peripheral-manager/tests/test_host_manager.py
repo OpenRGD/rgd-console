@@ -292,7 +292,8 @@ class TestInstaller(unittest.TestCase):
             self.assertIn('--continuous', imu_unit)
             self.assertIn('NoNewPrivileges=yes', imu_unit)
             self.assertNotIn('enable --now', imu_unit)
-            self.assertNotIn('start ', imu_unit)
+            self.assertNotIn('systemctl --user start', imu_unit)
+            self.assertNotIn('ExecStartPost=', imu_unit)
             with self.assertRaises(ValueError):
                 installer.install(info, home, runner)
             self.assertEqual(token.read_text(), 'never-print-this-private-test-secret')

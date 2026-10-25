@@ -50,14 +50,9 @@ export function imuSourceKey(imu: ImuObservation): string {
   return [imu.robot_id, imu.sensor_id, imu.session_id].join(':');
 }
 
-/** Read-only physical source and receive-time gate; WS online alone is not sensor presence. */
-export function isCurrentPakyImu(
-  imu: ImuObservation | null,
-  robotId: string | null,
-  connected: boolean,
-  nowMs: number,
-): imu is ImuObservation {
-  if (!imu || robotId !== CAGE_PREVIEW_ROBOT_ID || !connected || !Number.isFinite(nowMs)) return false;
+/** Trusted-shape check only; provenance is a Console claim, not hardware attestation. */
+export function isPakyImuSource(imu: ImuObservation | null, robotId: string | null): imu is ImuObservation {
+  if (!imu || robotId !== CAGE_PREVIEW_ROBOT_ID) return false;
   if (imu.robot_id !== robotId || imu.sensor_id !== CAGE_IMU_SENSOR_ID ||
       imu.source_id !== CAGE_IMU_SOURCE_ID || imu.sensor_frame_id !== CAGE_IMU_FRAME_ID ||
       imu.schema_version !== 'console.imu.v0.1-candidate' ||
@@ -69,6 +64,17 @@ export function isCurrentPakyImu(
       !Number.isSafeInteger(imu.sequence) || imu.sequence < 1) return false;
   if (![imu.orientation_euler_deg, imu.angular_velocity_rad_s, imu.acceleration_m_s2]
         .every(v => Array.isArray(v) && v.length === 3 && v.every(Number.isFinite))) return false;
+  return Number.isFinite(Date.parse(imu.console_received_at));
+}
+
+/** WS connected does not mean the physical sensor is current. */
+export function isCurrentPakyImu(
+  imu: ImuObservation | null,
+  robotId: string | null,
+  connected: boolean,
+  nowMs: number,
+): imu is ImuObservation {
+  if (!connected || !Number.isFinite(nowMs) || !isPakyImuSource(imu, robotId)) return false;
   const age = nowMs - Date.parse(imu.console_received_at);
   return Number.isFinite(age) && age >= -CAGE_PREVIEW_FUTURE_TOLERANCE_MS &&
     age <= CAGE_PREVIEW_STALE_AFTER_MS;

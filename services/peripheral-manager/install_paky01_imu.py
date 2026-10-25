@@ -240,5 +240,9 @@ if __name__ == "__main__":
     try:
         sys.exit(main())
     except (ValueError, OSError, json.JSONDecodeError, subprocess.TimeoutExpired) as exc:
-        print(f"PERIPH-0.2 install/preflight stopped: {type(exc).__name__}", file=sys.stderr)
+        # Fixed internal error labels are safe to show; never output a
+        # subprocess stderr, publisher token or raw file content.
+        reason = str(exc) if isinstance(exc, ValueError) and re.fullmatch(
+            r"[a-z][a-z0-9_]{1,80}", str(exc)) else type(exc).__name__
+        print(f"PERIPH-0.2 install/preflight stopped: {reason}", file=sys.stderr)
         sys.exit(1)

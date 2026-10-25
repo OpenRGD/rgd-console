@@ -53,29 +53,48 @@ Robot Completo is intentionally disabled until an actual model-linked, calibrate
 
 ## Mini-PC validation (read-only before deploy)
 
-Do not use any old ZIP/overlay or replace the active Console tree. The authoritative source is GitHub OpenRGD/rgd-console main plus reviewed feature PR. Inspect current working tree before creating a sibling worktree. On the operator's reported Ubuntu layout:
+Do not use any old ZIP/overlay or replace the active Console tree. The authoritative source is the GitHub OpenRGD/rgd-console branch. The previously reported active checkout is ~/openrgd/repos/openrgd-console, but first confirm with git remote -v and git status. On Ubuntu, Node.js may not be installed on the host; reuse the ALREADY EXISTING web container image for host-side Node tests.
 
-    cd ~/openrgd/repos/rgd-console
+    cd ~/openrgd/repos/openrgd-console
     git status --short --branch
+    git remote -v
     git fetch origin
-    git worktree add ../rgd-console-torso-cage -b local/torso-cage-review origin/feat/torso-cage-3d
-    cd ../rgd-console-torso-cage
-    node --test scripts/torso-cage-3d.test.mjs scripts/live-profiles.test.mjs scripts/imu-ingest-contract.test.mjs
-    cd apps/web
-    npm install --no-audit --no-fund
-    npm run typecheck
-    npm run build
 
-Use the actual cloned local directory; ~/openrgd/repos/openrgd-console was observed on the mini-PC in prior logs, and might be the correct path instead of rgd-console. If Node is absent, use an existing Node-enabled Docker image without mutating running services. Do not run compose up from a new worktree with the same ports and volume names while production Console is active.
+    # Identify the existing image from the RUNNING production web container.
+    WEB_CONTAINER=$(sudo docker compose ps -q web)
+    WEB_IMAGE=$(sudo docker inspect --format '{{.Image}}' "$WEB_CONTAINER")
+    printf 'Existing web image: %s\n' "$WEB_IMAGE"
 
-After review and a safe active-checkout update, only the web image/container needs rebuilding/recreation:
+    # Separate worktree; does NOT switch or modify the active Console checkout.
+    git worktree add --detach ../rgd-console-torso-review origin/feat/torso-cage-3d
+    cd ../rgd-console-torso-review
 
+    # Read-only tests, offline: no ports, no hardware devices, no serial drivers.
+    sudo docker run --rm --pull=never --network none \
+      --mount type=bind,source="$PWD",target=/workspace,readonly \
+      --workdir /workspace --entrypoint node "$WEB_IMAGE" \
+      --test scripts/torso-cage-3d.test.mjs \
+             scripts/live-profiles.test.mjs \
+             scripts/imu-ingest-contract.test.mjs
+
+For an independent Next.js production build, if the required Docker image and npm packages are available, build an ISOLATED image tag without starting any containers or touching live volumes:
+
+    cd ~/openrgd/repos/rgd-console-torso-review
+    sudo docker build -f deploy/Dockerfile.web -t rgd-console-torso-review:local .
+
+Do not use docker compose up from the detached review worktree: it can collide with production ports, services and named volumes. A failed offline image fetch is a network issue, not a reason to alter the active instance. GitHub Actions separately verifies the web build and TypeScript on the feature branch.
+
+**Deployment only after PR review and acceptance:** in the ACTIVE Console checkout, save/check current local modifications and roll back plan, merge into main, fast-forward the checkout, then rebuild/recreate **web only**:
+
+    cd ~/openrgd/repos/openrgd-console
+    git status --short --branch
+    git pull --ff-only
     sudo docker compose build web
     sudo docker compose up -d --no-deps --no-build web
     sudo docker compose ps
     python3 scripts/doctor.py
 
-This is an operator procedure, not evidence the command has been executed.
+This is an operator procedure, NOT evidence these commands have yet been run. Never run docker compose down -v.
 
 ## Acceptance checklist
 

@@ -7,6 +7,10 @@ mod module_manager;
 mod boot_manager;
 mod host_inventory;
 mod imu;
+// Domain contract only; no peripheral start/stop routes until host broker
+// authentication, systemd ownership and physical commissioning exist.
+#[allow(dead_code)]
+mod peripherals;
 mod routes;
 mod state;
 

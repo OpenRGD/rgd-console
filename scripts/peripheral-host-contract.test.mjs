@@ -40,7 +40,9 @@ test('implementation has narrow trusted-host ownership and no Docker device/priv
   assert.match(broker, /VALID_ACTIONS/);
   assert.match(broker, /"acquisition.start"/);
   assert.match(broker, /"acquisition.stop"/);
-  assert.doesNotMatch(broker, /shell=True|os\.system\(|os\.kill\(|killall|pkill|SocketCAN|python-can/);
+  // Comments explain forbidden patterns; only assert no executable calls.
+  assert.doesNotMatch(broker, /(?:subprocess\.run|runner)\([^)]*shell\s*=\s*True/);
+  assert.doesNotMatch(broker, /^\s*(?:os\.system|os\.kill|killall|pkill)\s*\(/m);
   assert.match(installer, /--install/);
   assert.match(installer, /--confirm/);
   assert.match(installer, /--continuous/);

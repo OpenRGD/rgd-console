@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Console module manifest v1",
+  "type": "object",
+  "required": ["manifest_version", "id", "version", "status", "origin", "compatibility", "dependencies", "capabilities", "permissions"],
+  "properties": {
+    "manifest_version": { "const": "console.module.v1" },
+    "id": { "type": "string", "pattern": "^[a-z][a-z0-9.-]+$" },
+    "version": { "type": "string" },
+    "status": { "enum": ["installed", "planned_not_installed"] },
+    "origin": { "type": "string" },
+    "compatibility": { "type": "object", "required": ["console_api"], "properties": { "console_api": { "const": "console.v1" } } },
+    "dependencies": { "type": "array", "items": { "type": "string" } },
+    "capabilities": { "type": "array", "items": { "type": "string" } },
+    "permissions": { "type": "array", "items": { "type": "string" } }
+  }
+}

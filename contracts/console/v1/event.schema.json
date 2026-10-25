@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Console operational event v1 (not Chronon)",
+  "type": "object",
+  "required": ["event_id", "robot_id", "event_kind", "stage", "severity", "title", "source_id", "source_kind", "observed_at", "received_at", "correlation_id", "causal_parent_event_ids", "chronon_id", "payload_ref", "evidence_class"],
+  "properties": {
+    "event_id": { "type": "string" },
+    "robot_id": { "type": "string" },
+    "event_kind": { "type": "string" },
+    "stage": { "enum": ["system", "requested", "accepted", "rejected", "executing", "observed", "result", "anomaly", "decision", "reasoning"] },
+    "source_id": { "type": "string" },
+    "source_kind": { "enum": ["simulated", "physical"] },
+    "observed_at": { "type": "string" },
+    "received_at": { "type": "string" },
+    "correlation_id": { "type": ["string", "null"] },
+    "causal_parent_event_ids": { "type": "array", "items": { "type": "string" } },
+    "chronon_id": { "type": ["string", "null"] },
+    "payload_ref": { "type": ["string", "null"] },
+    "evidence_class": { "type": "string" }
+  }
+}

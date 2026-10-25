@@ -1,0 +1,15 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://openrgd.org/contracts/console/v1/binding.schema.json",
+  "title": "Console-only Unverified Binding Proposal (never a HAL binding)",
+  "type": "object",
+  "required": ["id", "robot_id", "component_id", "endpoint_hint", "status", "created_at"],
+  "properties": {
+    "id": {"type": "string"},
+    "robot_id": {"type": "string"},
+    "component_id": {"type": "string"},
+    "endpoint_hint": {"type": "string", "maxLength": 180},
+    "status": {"const": "proposed_unverified"},
+    "created_at": {"type": "string", "format": "date-time"}
+  }
+}

@@ -1,0 +1,234 @@
+openapi: 3.1.0
+info:
+  title: OpenRGD Console API (local-only, non-actuating)
+  version: 0.3.0
+  description: >-
+    Versioned console.v1 transport. This is NOT a normative OpenRGD canonical
+    RGD/RGT/Chronon standard or a physical runtime safety authority.
+servers:
+  - url: http://127.0.0.1:8088/api/v1
+paths:
+  /status:
+    get:
+      summary: Console capabilities, physical-runtime status and safety boundary
+      responses:
+        '200': {description: Status object}
+  /robots:
+    get:
+      summary: List statically registered and imported robot instances
+      responses:
+        '200': {description: Registered instances}
+  /robots/{id}:
+    get:
+      summary: Get robot record
+      parameters: [{name: id, in: path, required: true, schema: {type: string}}]
+      responses:
+        '200': {description: Robot record}
+  /robots/{id}/calibration/inspect:
+    post:
+      summary: Explicit non-actuating CAL-0.2 inspection of previously imported RGD ZIP
+      description: >-
+        Requires a model-linked physical instance and the separately installed Calibration
+        executable in ready state. Extracts allowlisted source JSONC files in Module Agent
+        temporary storage. Persists the last report under console_data; NEVER moves motors.
+      parameters:
+        - {name: id, in: path, required: true, schema: {type: string}}
+      responses:
+        '200':
+          description: Passive report preview with false actuation and physical certification flags
+          content:
+            application/json:
+              schema: {$ref: './calibration-inspection.v0.4b.schema.json'}
+        '403': {description: Origin or approval-header rejected}
+        '404': {description: Robot/model not found}
+        '409': {description: RGD model not linked, archive tampered or module not ready}
+        '422': {description: Profile failed passive inspection}
+  /robots/{id}/calibration/last:
+    get:
+      summary: Last persisted non-authoritative calibration preview, or JSON null
+      parameters:
+        - {name: id, in: path, required: true, schema: {type: string}}
+      responses:
+        '200': {description: Previous passive report or null}
+  /robots/{id}/telemetry:
+    get:
+      summary: Get latest source-tagged snapshot or unavailable readings
+      parameters: [{name: id, in: path, required: true, schema: {type: string}}]
+      responses:
+        '200': {description: Snapshot}
+  /robots/{id}/model:
+    get:
+      summary: Get source-derived model preview attached to this instance
+      parameters: [{name: id, in: path, required: true, schema: {type: string}}]
+      responses:
+        '200': {description: Model preview}
+  /robots/{id}/readiness:
+    get:
+      summary: Describe known/unknown/blocking properties (never grants actuation)
+      parameters: [{name: id, in: path, required: true, schema: {type: string}}]
+      responses:
+        '200': {description: Readiness report}
+  /robots/{id}/discovery:
+    get:
+      summary: Return explicit unavailable physical-discovery state
+      parameters: [{name: id, in: path, required: true, schema: {type: string}}]
+      responses:
+        '200': {description: Not-enabled report}
+  /robots/{id}/bindings:
+    get:
+      summary: List console-only unverified binding proposals
+      parameters: [{name: id, in: path, required: true, schema: {type: string}}]
+      responses:
+        '200': {description: Binding drafts}
+    post:
+      summary: Store unverified binding draft (never controls hardware)
+      parameters: [{name: id, in: path, required: true, schema: {type: string}}]
+      requestBody: {required: true, content: {application/json: {schema: {type: object, required: [component_id, endpoint_hint]}}}}
+      responses:
+        '201': {description: Stored proposal, not validated physical binding}
+  /models:
+    get:
+      summary: List imported RGD profile previews
+      responses:
+        '200': {description: Models}
+  /models/{model_id}:
+    get:
+      summary: Get a profile preview
+      parameters: [{name: model_id, in: path, required: true, schema: {type: string}}]
+      responses:
+        '200': {description: Model}
+  /models/import:
+    post:
+      summary: Inspect and persist an RGD source-profile ZIP, no code execution
+      requestBody: {required: true, content: {multipart/form-data: {schema: {type: object, required: [file], properties: {file: {type: string, format: binary}}}}}}
+      responses:
+        '201': {description: Structural inspection only, canonical integrity unverified}
+        '422': {description: Invalid or unsupported archive}
+  /instances:
+    post:
+      summary: Create physical instance from previously imported model
+      requestBody: {required: true, content: {application/json: {schema: {type: object, required: [model_id, name]}}}}
+      responses:
+        '201': {description: New unbound robot instance}
+  /host:
+    get:
+      summary: Read process/container OS metadata, not physical device inventory
+      responses:
+        '200': {description: Process environment}
+  /installation/diagnostics:
+    get:
+      summary: Read server-side non-actuating deployment diagnostics
+      responses:
+        '200': {description: Console and data-volume status, never hardware readiness}
+  /host-reports/latest:
+    get:
+      summary: Read last operator-supplied passive host snapshot (nullable)
+      responses:
+        '200': {description: Latest unverified host inventory or null}
+  /host-reports/import:
+    post:
+      summary: Import an unverified host metadata snapshot (no probing or actuation)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: './host-inventory-upload.schema.json'}
+      responses:
+        '201': {description: Local snapshot persisted, operator_supplied_unverified}
+        '403': {description: Origin or local-write header rejected}
+        '422': {description: Invalid inventory schema or size}
+  /boot/health:
+    get:
+      summary: Private Boot Manager service health through Console API
+      responses:
+        '200': {description: Agent process healthy; no inference about profile readiness}
+  /boot/status:
+    get:
+      summary: Latest non-actuating RGD boot validation report
+      responses:
+        '200':
+          description: Status report (setup, recovery, verifying or ready_non_actuating)
+          content:
+            application/json:
+              schema: {$ref: './boot-report.v0.1.schema.json'}
+  /boot/history:
+    get:
+      summary: Last 20 boot checks stored in separate boot_data volume
+      responses:
+        '200': {description: Previous non-actuating reports}
+  /boot/recheck:
+    post:
+      summary: Repeat check and boot for the pinned locally selected profile
+      responses:
+        '200': {description: Non-actuating report}
+        '403': {description: Missing local mutation guard}
+  /boot/select:
+    post:
+      summary: Select an existing imported physical instance and static RGD model for future startups
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [instance_id, model_id]
+              properties:
+                instance_id: {type: string}
+                model_id: {type: string}
+      responses:
+        '200': {description: Profile selected and immediately checked}
+        '403': {description: Missing local mutation guard}
+        '409': {description: Model-instance mismatch}
+        '422': {description: Invalid selection}
+  /events:
+    get:
+      summary: Diagnostic event timeline, not Chronons
+      responses:
+        '200': {description: Events}
+  /modules:
+    get:
+      summary: Read-only manifest registry
+      responses:
+        '200': {description: Module list}
+  /stream:
+    get:
+      summary: Read-only WebSocket telemetry for robot_id
+      responses:
+        '101': {description: WebSocket upgrade}
+  /modules/catalog:
+    get:
+      summary: Pinned OpenRGD software registry catalog and verified local install states
+      responses:
+        '200': { description: Catalog candidate with per-module local status }
+        '503': { description: Private Module Agent unavailable; Console itself stays operational }
+  /modules/agent-health:
+    get:
+      summary: Check the internal, non-actuating Module Agent
+      responses:
+        '200': { description: Agent reachable (not physical runtime readiness) }
+        '503': { description: Agent not reachable }
+  /modules/install:
+    post:
+      summary: Start an explicitly approved non-actuating module install job
+      description: >-
+        Only known candidate catalog IDs and exact versions are accepted. The operator
+        must confirm exact INSTALL <module-id>@<version> <mode>. Installation can
+        execute Cargo build scripts in isolated Module Agent, but not motor commands.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: './module-install-request.schema.json' }
+      responses:
+        '202': { description: Install job accepted (not a completed installation) }
+        '403': { description: CSRF guard or missing explicit operator approval }
+        '422': { description: ID/version/mode rejected by candidate registry safety policy }
+        '503': { description: Module Agent unavailable }
+  /modules/jobs/{job_id}:
+    get:
+      summary: Read transient module installation job status
+      parameters: [{ name: job_id, in: path, required: true, schema: { type: string, pattern: '^[0-9a-f]{32}$' } }]
+      responses:
+        '200': { description: Queued, running, succeeded or failed; never robot readiness }
+        '404': { description: Unknown or expired job }

@@ -1,0 +1,112 @@
+name: openrgd-console
+services:
+  api:
+    build:
+      context: .
+      dockerfile: deploy/Dockerfile.api
+    environment:
+      CONSOLE_BIND: 0.0.0.0:8080
+      CONSOLE_ROBOTS_FILE: /app/config/robots.json
+      CONSOLE_MODULES_FILE: /app/config/modules.json
+      CONSOLE_DATA_DIR: /app/data
+      RUST_LOG: info
+      CONSOLE_MODULE_AGENT_URL: http://module-agent:8090
+      CONSOLE_BOOT_MANAGER_URL: http://boot-manager:8091
+      CONSOLE_IMU_INGEST_TOKEN: ${CONSOLE_IMU_INGEST_TOKEN:-}
+      CONSOLE_IMU_ALLOWED_ROBOT_IDS: ${CONSOLE_IMU_ALLOWED_ROBOT_IDS:-paky-01}
+    volumes:
+      - ./config:/app/config:ro
+      - console_data:/app/data
+    expose:
+      - "8080"
+    networks: [default, boot-internal]
+    read_only: true
+    tmpfs:
+      - /tmp
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    restart: unless-stopped
+
+  web:
+    build:
+      context: .
+      dockerfile: deploy/Dockerfile.web
+    environment:
+      NODE_ENV: production
+      NEXT_TELEMETRY_DISABLED: "1"
+      HOSTNAME: 0.0.0.0
+      PORT: "3000"
+    expose:
+      - "3000"
+    read_only: true
+    tmpfs:
+      - /tmp
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    restart: unless-stopped
+
+  module-agent:
+    build:
+      context: .
+      dockerfile: deploy/Dockerfile.module-agent
+    environment:
+      OPENRGD_MODULE_DATA_DIR: /app/data
+      CARGO_HOME: /app/data/cargo
+      HOME: /app/data
+      RUSTUP_HOME: /usr/local/rustup
+    volumes:
+      - module_data:/app/data
+    expose:
+      - "8090"
+    read_only: true
+    tmpfs:
+      - /tmp:mode=1777
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    pids_limit: 256
+    restart: unless-stopped
+
+  boot-manager:
+    build:
+      context: .
+      dockerfile: deploy/Dockerfile.boot-manager
+    environment:
+      OPENRGD_CONSOLE_DATA_DIR: /app/console-data
+      OPENRGD_BOOT_DATA_DIR: /app/boot-data
+      OPENRGD_RGD_BIN: /usr/local/bin/rgd
+    volumes:
+      - console_data:/app/console-data:ro
+      - boot_data:/app/boot-data
+    expose: ["8091"]
+    networks: [boot-internal]
+    group_add:
+      - "10001"
+    read_only: true
+    tmpfs: [/tmp]
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    pids_limit: 64
+    restart: unless-stopped
+
+  gateway:
+    image: caddy:2.10-alpine
+    ports:
+      - "127.0.0.1:8088:8080"
+    volumes:
+      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+    depends_on:
+      - api
+      - web
+    cap_drop: [ALL]
+    cap_add: [NET_BIND_SERVICE]
+    security_opt: [no-new-privileges:true]
+    restart: unless-stopped
+
+volumes:
+  console_data:
+  module_data:
+  boot_data:
+
+networks:
+  boot-internal:
+    internal: true

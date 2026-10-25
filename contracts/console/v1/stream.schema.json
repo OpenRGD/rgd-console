@@ -1,0 +1,13 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Console read-only WebSocket envelope v1",
+  "type": "object",
+  "required": ["schema_version", "type", "robot_id", "emitted_at", "data"],
+  "properties": {
+    "schema_version": { "const": "console.v1" },
+    "type": { "enum": ["hello", "heartbeat", "telemetry", "event"] },
+    "robot_id": { "type": ["string", "null"] },
+    "emitted_at": { "type": "string" },
+    "data": {}
+  }
+}

@@ -1,0 +1,22 @@
+[package]
+name = "openrgd-console-api"
+version = "0.4.3"
+edition = "2021"
+license = "MIT"
+publish = false
+
+[dependencies]
+axum = { version = "=0.8.9", features = ["ws", "multipart"] }
+tokio = { version = "1", features = ["full"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+chrono = { version = "0.4", features = ["serde"] }
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+reqwest = { version = "0.12", default-features = false, features = ["json"] }
+sha2 = "0.10"
+zip = { version = "2.4", default-features = false, features = ["deflate"] }
+json5 = "0.4"
+
+[dev-dependencies]
+tower = { version = "0.5", features = ["util"] }

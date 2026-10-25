@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:openrgd:console:modules:catalog:v0.4a",
+  "title": "Software Module Registry candidate catalog and local installation state",
+  "type": "object",
+  "required": ["manager_contract", "registry_contract", "source", "catalog", "auto_install", "actuation_enabled"],
+  "properties": {
+    "manager_contract": {"const":"console.module-manager.v0.4a"},
+    "registry_contract": {"const":"0.1.0-candidate"},
+    "source": {"type":"string"},
+    "catalog": {"type":"array", "items":{"type":"object", "required":["descriptor","installation"], "properties":{
+      "descriptor":{"type":"object", "required":["id","version","permissions_required","safety","source","distribution"]},
+      "installation":{"type":"object", "required":["state","binary_sha256"], "properties":{
+        "state":{"enum":["not_installed","ready","source_only","tampered"]},
+        "binary_sha256":{"type":["string","null"]}
+      }}
+    }}},
+    "auto_install":{"const":false},
+    "actuation_enabled":{"const":false}
+  }
+}

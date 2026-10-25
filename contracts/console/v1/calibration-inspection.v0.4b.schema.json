@@ -1,0 +1,145 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:openrgd:console:calibration-inspection:v0.4b",
+  "title": "Console passive CAL-0.2 snapshot wrapper (not a physical calibration certificate)",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "robot_id",
+    "source_model_id",
+    "source_profile_sha256",
+    "source_integrity",
+    "generated_at",
+    "evidence_class",
+    "physical_calibration_certified",
+    "actuation_enabled",
+    "inspection"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "console.calibration-inspection.v0.4b"
+    },
+    "robot_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "source_model_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "source_profile_sha256": {
+      "type": "string",
+      "pattern": "^sha256:[0-9a-f]{64}$"
+    },
+    "source_integrity": {
+      "const": "canonical_not_verified"
+    },
+    "generated_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "evidence_class": {
+      "const": "declared_profile_only_not_physical_observation"
+    },
+    "physical_calibration_certified": {
+      "const": false
+    },
+    "actuation_enabled": {
+      "const": false
+    },
+    "inspection": {
+      "type": "object",
+      "required": [
+        "inspection_contract",
+        "module_id",
+        "module_version",
+        "binary_sha256",
+        "generated_at",
+        "extracted_sources",
+        "evidence_class",
+        "actuation_enabled",
+        "physical_calibration_certified",
+        "report"
+      ],
+      "properties": {
+        "inspection_contract": {
+          "const": "console.passive-calibration.v0.4b"
+        },
+        "module_id": {
+          "const": "org.openrgd.calibration"
+        },
+        "module_version": {
+          "const": "0.2.0"
+        },
+        "binary_sha256": {
+          "type": "string",
+          "pattern": "^sha256:[0-9a-f]{64}$"
+        },
+        "generated_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "extracted_sources": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^(description|calibration|actuation_topology|hal_mapping|sensor_fidelity)\\.jsonc$"
+          }
+        },
+        "evidence_class": {
+          "const": "declared_profile_only_not_physical_observation"
+        },
+        "actuation_enabled": {
+          "const": false
+        },
+        "physical_calibration_certified": {
+          "const": false
+        },
+        "report": {
+          "type": "object",
+          "required": [
+            "report_version",
+            "model_id",
+            "coverage",
+            "parameters",
+            "findings",
+            "current_robot_position_observed",
+            "physical_drift_evaluated",
+            "claims_physical_calibration_certified",
+            "export_preview"
+          ],
+          "properties": {
+            "report_version": {
+              "const": "0.2.0"
+            },
+            "model_id": {
+              "type": "string"
+            },
+            "coverage": {
+              "type": "object"
+            },
+            "parameters": {
+              "type": "array"
+            },
+            "findings": {
+              "type": "array"
+            },
+            "current_robot_position_observed": {
+              "const": false
+            },
+            "physical_drift_evaluated": {
+              "const": false
+            },
+            "claims_physical_calibration_certified": {
+              "const": false
+            },
+            "export_preview": {
+              "type": "null"
+            }
+          }
+        }
+      }
+    }
+  }
+}

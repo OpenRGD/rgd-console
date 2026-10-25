@@ -1,0 +1,60 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://openrgd.org/schemas/console/installation-diagnostics.v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "console_version",
+    "api_reachable",
+    "data_directory_present",
+    "registered_robots",
+    "imported_models",
+    "host_report_imported",
+    "server_container_scope_only",
+    "canonical_validator_integrated",
+    "hardware_scanned_by_backend",
+    "software_installation_enabled",
+    "actuation_enabled"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "console.installation-diagnostics.v1"
+    },
+    "console_version": {
+      "type": "string"
+    },
+    "api_reachable": {
+      "const": true
+    },
+    "data_directory_present": {
+      "type": "boolean"
+    },
+    "registered_robots": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "imported_models": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "host_report_imported": {
+      "type": "boolean"
+    },
+    "server_container_scope_only": {
+      "const": true
+    },
+    "canonical_validator_integrated": {
+      "const": false
+    },
+    "hardware_scanned_by_backend": {
+      "const": false
+    },
+    "software_installation_enabled": {
+      "const": false
+    },
+    "actuation_enabled": {
+      "const": false
+    }
+  }
+}

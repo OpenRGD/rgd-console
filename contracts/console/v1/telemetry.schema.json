@@ -1,0 +1,65 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:openrgd:console:telemetry:v1",
+  "title": "Console telemetry transport v1 (not RGT)",
+  "type": "object",
+  "required": ["schema_version", "robot_id", "source_kind", "connection_state", "runtime_state", "clock_domain", "sequence", "received_at", "power", "can", "controllers", "motors"],
+  "properties": {
+    "schema_version": { "const": "console.v1" },
+    "robot_id": { "type": "string" },
+    "source_kind": { "enum": ["simulated", "physical"] },
+    "connection_state": { "enum": ["connected", "disconnected", "unknown"] },
+    "runtime_state": { "type": "string" },
+    "clock_domain": { "type": "string" },
+    "sequence": { "type": ["integer", "null"], "minimum": 0 },
+    "received_at": { "type": ["string", "null"] },
+    "power": {
+      "type": "object",
+      "required": ["voltage", "current", "power", "temperature"],
+      "properties": {
+        "voltage": { "$ref": "#/$defs/measurement" },
+        "current": { "$ref": "#/$defs/measurement" },
+        "power": { "$ref": "#/$defs/measurement" },
+        "temperature": { "$ref": "#/$defs/measurement" }
+      }
+    },
+    "can": {
+      "type": "object",
+      "required": ["bus_state", "measured_at", "bitrate", "update_rate", "source_id"],
+      "properties": {
+        "bus_state": { "type": "string" },
+        "measured_at": { "type": ["string", "null"] },
+        "bitrate": { "$ref": "#/$defs/measurement" },
+        "update_rate": { "$ref": "#/$defs/measurement" },
+        "source_id": { "type": "string" }
+      }
+    },
+    "controllers": { "type": "array", "items": { "type": "object", "required": ["id", "measured_at", "transport", "state", "source_id"] } },
+    "motors": {
+      "type": "array",
+      "items": {
+        "type": "object", "required": ["id", "measured_at", "joint", "state", "position", "velocity", "temperature", "error"],
+        "properties": {
+          "measured_at": { "type": ["string", "null"] },
+          "position": { "$ref": "#/$defs/measurement" },
+          "velocity": { "$ref": "#/$defs/measurement" },
+          "temperature": { "$ref": "#/$defs/measurement" }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "measurement": {
+      "type": "object",
+      "required": ["value", "unit", "source_id", "source_kind", "measured_at", "quality"],
+      "properties": {
+        "value": { "type": ["number", "null"] },
+        "unit": { "type": "string" },
+        "source_id": { "type": "string" },
+        "source_kind": { "enum": ["simulated", "physical"] },
+        "measured_at": { "type": ["string", "null"] },
+        "quality": { "enum": ["simulated", "observed", "unavailable", "stale"] }
+      }
+    }
+  }
+}

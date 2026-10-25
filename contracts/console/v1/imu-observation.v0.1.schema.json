@@ -1,0 +1,126 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://openrgd.org/candidate/console/imu-observation.v0.1",
+  "title": "Console IMU Observation v0.1 candidate (not Canonical OpenRGD)",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "robot_id",
+    "sensor_id",
+    "source_id",
+    "sensor_frame_id",
+    "session_id",
+    "sequence",
+    "host_receive_utc",
+    "host_monotonic_ns",
+    "console_received_at",
+    "source_kind",
+    "acceleration_m_s2",
+    "angular_velocity_rad_s",
+    "orientation_euler_deg",
+    "temperature_c",
+    "calibration_revision",
+    "reference_frame",
+    "time_quality",
+    "heading_calibrated",
+    "decision_eligible",
+    "observation_only",
+    "motion_hint"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "console.imu.v0.1-candidate"
+    },
+    "robot_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "sensor_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "source_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "sensor_frame_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "session_id": {
+      "type": "string",
+      "minLength": 32,
+      "maxLength": 32,
+      "pattern": "^[0-9a-fA-F]+$"
+    },
+    "sequence": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "host_receive_utc": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "host_monotonic_ns": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "console_received_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "source_kind": {
+      "const": "physical"
+    },
+    "acceleration_m_s2": {
+      "$ref": "#/$defs/vec3"
+    },
+    "angular_velocity_rad_s": {
+      "$ref": "#/$defs/vec3"
+    },
+    "orientation_euler_deg": {
+      "$ref": "#/$defs/vec3"
+    },
+    "temperature_c": {
+      "type": [
+        "number",
+        "null"
+      ]
+    },
+    "calibration_revision": {
+      "type": "null"
+    },
+    "reference_frame": {
+      "const": "imu_sensor_axes_unverified"
+    },
+    "time_quality": {
+      "const": "host_receive_only_not_chronograph"
+    },
+    "heading_calibrated": {
+      "const": false
+    },
+    "decision_eligible": {
+      "const": false
+    },
+    "observation_only": {
+      "const": true
+    },
+    "motion_hint": {
+      "enum": [
+        "rotation_observed",
+        "low_angular_rate"
+      ]
+    }
+  },
+  "$defs": {
+    "vec3": {
+      "type": "array",
+      "items": {
+        "type": "number"
+      },
+      "minItems": 3,
+      "maxItems": 3
+    }
+  }
+}

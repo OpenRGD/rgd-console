@@ -1,0 +1,122 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:openrgd:console:physical-observation:v0.1-candidate",
+  "$comment": "Design-only; no API ingest or hardware provider exists in Console v0.4B.",
+  "title": "Candidate universal physical joint observation (NOT an actuation protocol)",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "robot_instance_id",
+    "provider_id",
+    "provider_instance_id",
+    "source_kind",
+    "source_verified",
+    "clock_domain",
+    "observed_at",
+    "received_at",
+    "sequence",
+    "logical_component_id",
+    "mapping_verified",
+    "quantity",
+    "position_reference",
+    "value",
+    "unit",
+    "quality",
+    "actuation_enabled"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "console.physical-observation.v0.1-candidate"
+    },
+    "robot_instance_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "provider_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "provider_instance_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "source_kind": {
+      "enum": [
+        "physical",
+        "simulated"
+      ]
+    },
+    "source_verified": {
+      "type": "boolean"
+    },
+    "clock_domain": {
+      "type": "string",
+      "minLength": 1
+    },
+    "observed_at": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "format": "date-time"
+    },
+    "received_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "sequence": {
+      "type": [
+        "integer",
+        "null"
+      ],
+      "minimum": 0
+    },
+    "logical_component_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "mapping_verified": {
+      "type": "boolean"
+    },
+    "quantity": {
+      "enum": [
+        "joint.position",
+        "joint.velocity",
+        "joint.temperature",
+        "power.voltage",
+        "power.current",
+        "sensor.scalar"
+      ]
+    },
+    "position_reference": {
+      "enum": [
+        "absolute_joint",
+        "relative_since_boot",
+        "unknown",
+        "not_applicable"
+      ]
+    },
+    "value": {
+      "type": [
+        "number",
+        "null"
+      ]
+    },
+    "unit": {
+      "type": "string"
+    },
+    "quality": {
+      "enum": [
+        "observed",
+        "unavailable",
+        "stale",
+        "simulated",
+        "unverified"
+      ]
+    },
+    "actuation_enabled": {
+      "const": false
+    }
+  }
+}

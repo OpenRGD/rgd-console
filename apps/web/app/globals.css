@@ -1,0 +1,22 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root { color-scheme: dark; }
+html { scroll-behavior: smooth; }
+body { min-height: 100vh; background: #080d15; }
+::selection { background: #3fb8a477; color: white; }
+:focus-visible { outline: 2px solid #63e5c0; outline-offset: 3px; }
+::-webkit-scrollbar { height: 9px; width: 9px; }
+::-webkit-scrollbar-thumb { background: #314151; border-radius: 10px; }
+@layer components {
+  .glass { background: linear-gradient(135deg, rgba(20,32,44,.92), rgba(13,21,31,.96)); border: 1px solid #263442; }
+  .panel { @apply rounded-2xl border border-line bg-panel; }
+  .eyebrow { @apply text-[10px] font-semibold uppercase tracking-[.18em] text-muted; }
+  .soft-divider { border-top: 1px solid #253441; }
+  .status-pill { @apply inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-semibold tracking-wide; }
+  .tiny-label { @apply text-[11px] text-muted; }
+  .mono { @apply font-mono tabular-nums; }
+  .shimmer { background: linear-gradient(90deg, #111c26 0%, #1b2b38 50%, #111c26 100%); }
+}
+@media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; } }

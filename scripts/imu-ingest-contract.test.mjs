@@ -1,0 +1,40 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
+const src = name => readFileSync(new URL('../'+name, import.meta.url), 'utf8');
+test('IMU sensor sample is non-authoritative, never capable of motor actuation',()=>{
+ const rust=src('services/api/src/imu.rs');
+ assert.match(rust,/observation_only: true/);
+ assert.match(rust,/decision_eligible: false/);
+ assert.match(rust,/heading_calibrated: false/);
+ assert.match(rust,/host_receive_only_not_chronograph/);
+ assert.match(rust,/stale_or_future_capture_timestamp/);
+ assert.match(rust,/calibration_claim_not_supported_in_v01/);
+ assert.match(src('services/api/src/routes.rs'), /imu::token_matches/);
+ assert.match(src('services/api/src/routes.rs'), /CONSOLE_IMU_ALLOWED_ROBOT_IDS/);
+ assert.match(src('services/api/src/routes.rs'), /imu_source_conflict/);
+ assert.match(src('services/api/src/routes.rs'), /imu_replay/);
+ assert.doesNotMatch(rust,/motor\.write|can\.send|safety\.override|motor\.command/);
+});
+test('WebSocket and UI use explicitly sourced physical IMU readings',()=>{
+ const route=src('services/api/src/routes.rs'), hook=src('apps/web/src/hooks/use-console.ts');
+ assert.match(route,/\/api\/v1\/imu\/observations/);
+ assert.match(route,/\/api\/v1\/robots\/\{id\}\/imu/);
+ assert.match(route,/StreamFrame::new\("imu"/);
+ assert.match(hook,/isImuObservation/);
+ assert.match(hook,/frame\.type === 'imu'/);
+ const ui=src('apps/web/src/components/imu-panel.tsx');
+ assert.match(ui,/NON DISPONIBILE \/ STALE/);
+ assert.match(ui,/non valido per decisioni motrici/);
+ assert.match(ui,/3000/);
+ const schema=JSON.parse(src('contracts/console/v1/imu-observation.v0.1.schema.json'));
+ assert.equal(schema.properties.decision_eligible.const,false);
+ assert.equal(schema.properties.heading_calibrated.const,false);
+ assert.equal(schema.properties.source_kind.const,'physical');
+});
+test('Compose exposes API only through loopback gateway and never mounts USB',()=>{
+ const compose=src('docker-compose.yml');
+ assert.match(compose,/127\.0\.0\.1:8088:8080/);
+ assert.match(compose,/CONSOLE_IMU_INGEST_TOKEN/);
+ assert.doesNotMatch(compose,/\/dev\/ttyUSB|\/dev\/bus\/usb|\/var\/run\/docker\.sock/);
+});

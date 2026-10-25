@@ -1,0 +1,56 @@
+name: Console Foundation checks
+on:
+  push:
+  pull_request:
+
+jobs:
+  contracts:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: node --test scripts/*.test.mjs
+      - run: python3 -m unittest discover -s scripts -p 'test_host_snapshot.py' -v
+      - run: python3 -m unittest discover -s scripts -p 'test_upgrade_v04a.py' -v
+      - run: python3 -m unittest discover -s scripts -p 'test_upgrade_v04b.py' -v
+      - run: python3 -m unittest discover -s scripts -p 'test_upgrade_v04c.py' -v
+      - run: python3 -m unittest discover -s scripts -p 'test_upgrade_v04d.py' -v
+      - run: python3 -m unittest discover -s services/module-agent/tests -p 'test_*.py' -v
+      - run: PYTHONPATH=services/boot-manager python3 -m unittest discover -s services/boot-manager -p 'test_*.py' -v
+
+  api:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - run: cargo test --manifest-path services/api/Cargo.toml
+
+  web:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm install --no-audit --no-fund
+        working-directory: apps/web
+      - run: npm run typecheck
+        working-directory: apps/web
+      - run: npm run build
+        working-directory: apps/web
+
+  docker-smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: docker compose up --build -d
+      - run: python3 scripts/doctor.py
+      - run: python3 scripts/boot-smoke.py
+      - name: Report containers and clean up
+        if: always()
+        run: |
+          docker compose ps || true
+          docker compose logs --tail=100 || true
+          docker compose down || true

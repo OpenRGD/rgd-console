@@ -1,0 +1,26 @@
+# The module distribution catalog is pinned to a reviewed immutable commit.
+# Runtime installs always go through its exact source-commit verification logic.
+FROM rust:1.90-bookworm
+ARG REGISTRY_COMMIT=0268b3748042d04fd3561553616388368881e04a
+RUN apt-get update && apt-get install -y --no-install-recommends python3 git ca-certificates \
+  && rm -rf /var/lib/apt/lists/*
+WORKDIR /opt/openrgd
+RUN git init -q rgd-modules \
+  && git -C rgd-modules remote add origin https://github.com/OpenRGD/rgd-modules.git \
+  && git -C rgd-modules fetch --depth=1 origin "$REGISTRY_COMMIT" \
+  && git -C rgd-modules checkout -q --detach FETCH_HEAD \
+  && test "$(git -C rgd-modules rev-parse HEAD)" = "$REGISTRY_COMMIT" \
+  && rm -rf rgd-modules/.git
+RUN mkdir -p /opt/openrgd/module-agent && chmod 0755 /opt/openrgd/module-agent
+COPY --chmod=0644 services/module-agent/server.py /opt/openrgd/module-agent/server.py
+COPY --chmod=0644 services/module-agent/calibration_passive.py /opt/openrgd/module-agent/calibration_passive.py
+ENV PYTHONPATH=/opt/openrgd/rgd-modules:/opt/openrgd/module-agent \
+    OPENRGD_MODULE_DATA_DIR=/app/data \
+    CARGO_HOME=/app/data/cargo \
+    HOME=/app/data \
+    RUSTUP_HOME=/usr/local/rustup
+RUN mkdir -p /app/data && chown 10002:10002 /app/data
+USER 10002:10002
+WORKDIR /app
+EXPOSE 8090
+CMD ["python3", "-u", "/opt/openrgd/module-agent/server.py"]

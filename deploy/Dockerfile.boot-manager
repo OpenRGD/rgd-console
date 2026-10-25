@@ -1,0 +1,26 @@
+# The canonical RGD validation toolchain is installed from an immutable
+# OpenRGD git commit at IMAGE BUILD time, not via floating branch at boot.
+FROM python:3.11-slim-bookworm
+ARG OPENRGD_CANONICAL_COMMIT=afe1a831b950a4e6560f0285a0103fc4eaa343b7
+RUN apt-get update && apt-get install -y --no-install-recommends git ca-certificates \
+  && rm -rf /var/lib/apt/lists/*
+WORKDIR /opt/openrgd
+RUN git init -q canonical \
+  && git -C canonical remote add origin https://github.com/OpenRGD/openrgd.git \
+  && git -C canonical fetch --depth=1 origin "$OPENRGD_CANONICAL_COMMIT" \
+  && git -C canonical checkout -q --detach FETCH_HEAD \
+  && test "$(git -C canonical rev-parse HEAD)" = "$OPENRGD_CANONICAL_COMMIT" \
+  && python -m pip install --no-cache-dir ./canonical \
+  && rm -rf canonical/.git
+RUN mkdir -p /opt/openrgd/boot-manager /app/boot-data /app/console-data \
+  && chown -R 10003:10003 /app/boot-data
+COPY --chmod=0644 services/boot-manager/boot_core.py /opt/openrgd/boot-manager/boot_core.py
+COPY --chmod=0644 services/boot-manager/server.py /opt/openrgd/boot-manager/server.py
+ENV OPENRGD_CONSOLE_DATA_DIR=/app/console-data \
+    OPENRGD_BOOT_DATA_DIR=/app/boot-data \
+    OPENRGD_RGD_BIN=/usr/local/bin/rgd \
+    PYTHONDONTWRITEBYTECODE=1
+USER 10003:10003
+WORKDIR /opt/openrgd/boot-manager
+EXPOSE 8091
+CMD ["python3", "-u", "/opt/openrgd/boot-manager/server.py"]

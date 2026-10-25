@@ -1,0 +1,134 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://openrgd.org/schemas/console/boot-report.v0.1",
+  "title": "OpenRGD Console Boot Manager diagnostic report (never physical readiness)",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "status",
+    "reason",
+    "message",
+    "checked_at",
+    "selection",
+    "checks",
+    "validation",
+    "grounding",
+    "physical_execution",
+    "hardware_scanned",
+    "motor_commands_sent"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "console.boot.v0.1"
+    },
+    "status": {
+      "enum": [
+        "checking",
+        "setup_required",
+        "ready_non_actuating",
+        "recovery_required",
+        "validator_unavailable"
+      ]
+    },
+    "reason": {
+      "type": "string"
+    },
+    "message": {
+      "type": "string"
+    },
+    "checked_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "selection": {
+      "oneOf": [
+        {
+          "type": "null"
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "instance_id",
+            "model_id"
+          ],
+          "properties": {
+            "instance_id": {
+              "type": "string"
+            },
+            "model_id": {
+              "type": "string"
+            }
+          }
+        }
+      ]
+    },
+    "checks": {
+      "type": "array",
+      "maxItems": 12,
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "state",
+          "detail"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "state": {
+            "enum": [
+              "passed",
+              "blocked",
+              "missing",
+              "unavailable"
+            ]
+          },
+          "detail": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "validation": {
+      "type": [
+        "object",
+        "null"
+      ]
+    },
+    "grounding": {
+      "type": [
+        "object",
+        "null"
+      ]
+    },
+    "physical_execution": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "assessed",
+        "authorized",
+        "status"
+      ],
+      "properties": {
+        "assessed": {
+          "const": false
+        },
+        "authorized": {
+          "const": false
+        },
+        "status": {
+          "const": "NOT_AUTHORIZED_BY_BOOT"
+        }
+      }
+    },
+    "hardware_scanned": {
+      "const": false
+    },
+    "motor_commands_sent": {
+      "const": false
+    }
+  }
+}

@@ -1,0 +1,102 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://openrgd.org/schemas/console/host-inventory-upload.v1",
+  "title": "OpenRGD Console passive host inventory upload v1 (operator supplied, untrusted)",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "collection_method",
+    "collected_at",
+    "platform",
+    "interfaces"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "console.host-inventory.v1"
+    },
+    "collection_method": {
+      "const": "passive_file_metadata_v1"
+    },
+    "collected_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "platform": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "os_id",
+        "pretty_name",
+        "architecture",
+        "kernel_release"
+      ],
+      "properties": {
+        "os_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 80
+        },
+        "pretty_name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 160
+        },
+        "architecture": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 40
+        },
+        "kernel_release": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 120
+        }
+      }
+    },
+    "interfaces": {
+      "type": "array",
+      "maxItems": 128,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "category",
+          "endpoint",
+          "state",
+          "evidence_source"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 140
+          },
+          "category": {
+            "enum": [
+              "can_interface",
+              "serial_endpoint",
+              "video_endpoint"
+            ]
+          },
+          "endpoint": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 180
+          },
+          "state": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 48
+          },
+          "evidence_source": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 80
+          }
+        }
+      }
+    }
+  }
+}

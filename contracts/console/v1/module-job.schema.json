@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:openrgd:console:modules:job:v0.4a",
+  "title": "Ephemeral software installation job status (not a robot command)",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["job_id", "module_id", "version", "mode", "state", "created_at", "finished_at", "error", "result", "hardware_access"],
+  "properties": {
+    "job_id": {"type":"string", "pattern":"^[0-9a-f]{32}$"},
+    "module_id": {"type":"string"},
+    "version": {"type":"string"},
+    "mode": {"enum":["source_only","build"]},
+    "state": {"enum":["queued","running","succeeded","failed"]},
+    "created_at": {"type":"string", "format":"date-time"},
+    "finished_at": {"type":["string","null"]},
+    "error": {"type":["string","null"]},
+    "result": {"type":["object","null"]},
+    "hardware_access": {"const":false}
+  }
+}

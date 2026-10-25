@@ -1,0 +1,51 @@
+.env
+.env.*.local
+!.env.example
+node_modules/
+.next/
+out/
+target/
+.DS_Store
+*.log
+*.swp
+
+/data/
+*.zip
+__pycache__/
+*.pyc
+openrgd-host-report.json
+
+# OPENRGD PRIVATE AND LOCAL RUNTIME FILES
+
+# Credentials
+.env*
+!.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+
+# Host-specific configuration
+/config/*.json
+
+# Local backups
+docker-compose.yml.backup*
+*.bak
+*.orig
+*.rej
+
+# Local environments
+.venv/
+venv/
+
+# Runtime data
+/console_data/
+/module_data/
+/boot_data/
+/backups/
+/artifacts/
+*.sqlite
+*.sqlite3
+*.db
+*.jsonl
+*.rgd

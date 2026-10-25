@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://openrgd.org/contracts/console/v1/readiness.schema.json",
+  "title": "Console v0.2 Observation/Readiness Report (not an actuation authorization)",
+  "type": "object",
+  "required": ["robot_id", "status", "actuation_enabled", "checks", "robot_kind"],
+  "properties": {
+    "robot_id": {"type": "string"},
+    "status": {"const": "not_ready_for_actuation"},
+    "actuation_enabled": {"const": false},
+    "robot_kind": {"enum": ["physical", "simulated"]},
+    "checks": {"type": "array", "items": {"type": "object", "required": ["key", "state", "detail"], "properties": {"key": {"type": "string"}, "state": {"type": "string"}, "detail": {"type": "string"}}}}
+  }
+}

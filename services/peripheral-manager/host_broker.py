@@ -63,7 +63,7 @@ def read_allowlist(path: Path, uid: int | None = None) -> dict:
             or set(parsed) != {"schema_version", "services"}
             or parsed["schema_version"] != ALLOWLIST_SCHEMA
             or not isinstance(parsed["services"], list)
-            or len(parsed["services"]) > MAX_SERVICES):
+            or not 1 <= len(parsed["services"]) <= MAX_SERVICES):
         raise ValueError("allowlist_schema_invalid")
     keys: set[tuple[str, str]] = set()
     units: set[str] = set()

@@ -81,7 +81,10 @@ mod tests {
     fn default_boot_manager_url_is_internal_only() {
         // Explicit URL allowlist must never use incoming request-controlled URLs.
         let code = include_str!("boot_manager.rs");
-        assert!(!code.contains("reqwest::Method::PUT"));
-        assert!(code.contains("http://boot-manager:8091"));
+        // Inspect operational code only: the test assertion itself contains the
+        // forbidden token and must not count as a PUT request implementation.
+        let operational_code = code.split("#[cfg(test)]").next().unwrap();
+        assert!(!operational_code.contains("reqwest::Method::PUT"));
+        assert!(operational_code.contains("http://boot-manager:8091"));
     }
 }

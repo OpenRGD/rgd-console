@@ -53,6 +53,29 @@ gh repo clone italiarobotica/paky-01 ~/openrgd/worktrees/paky-01-periph02 -- \
     --branch feat/periph-0.2-imu-managed-publisher
 ```
 
+### Phase 0: one-shot, reusable read-only host audit
+
+After cloning the two separate source branches below (or if they already exist),
+run the **generic** preflight report **against the actually installed robot and
+Console**, not against staging or a fabricated test fixture:
+
+```bash
+bash ~/openrgd/worktrees/rgd-console-periph02/scripts/peripheral-host-preflight.sh
+```
+
+This reads Git branch + dirty worktree count for the deployed Console and Paky-01,
+device identity declared by `parameters/imu_instance.json`, live `udevadm`
+VID/PID/read-write permission metadata, rootless `systemd --user` availability,
+current IMU publisher PIDs **without full process command lines**, Python
+`pyserial` importability, **token file mode/owner only (never token contents)**,
+and the current Console IMU endpoint **schema/identity only (not raw Euler/
+acceleration data)**.
+
+It is strictly read-only: no host service install/start/stop/enable, no
+`sudo`, no opening the physical IMU serial, no git pull/reset of deployed
+sources and no Docker changes. Report its output to the commissioning chat;
+do not paste secret token files or `.env`.
+
 **First, read-only preflight** (does not open IMU USB or change `systemd`):
 ```bash
 cd ~/openrgd/worktrees/rgd-console-periph02

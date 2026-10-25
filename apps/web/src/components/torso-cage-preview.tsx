@@ -104,10 +104,10 @@ export default function TorsoCagePreview({ robotId, imu, connected, now }: Props
       { sourceKey, rollDeg: roll, pitchDeg: pitch });
   }, [fresh, sourceKey, imu?.orientation_euler_deg[0], imu?.orientation_euler_deg[1]]);
 
-  const sameSession = sourceValid && zero?.sourceKey === sourceKey;
   // When stale, the geometry stays in the LAST OBSERVED orientation and is visibly marked STALE;
   // there is no synthetic animation or extrapolated sensor motion.
-  const pose = sameSession ? relativeCagePose(imu, zero) : null;
+  const pose = sourceValid && zero && zero.sourceKey === sourceKey
+    ? relativeCagePose(imu, zero) : null;
   const rotation: Rotation = pose ? [pose.rotationXRad, 0, pose.rotationZRad] : [0, 0, 0];
 
   const resetVisualZero = () => {

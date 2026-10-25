@@ -1,4 +1,4 @@
-# Console IMU Publisher Control v0.1 — design and physical commissioning gate
+# First peripheral adapter: Paky-01 IMU — service-control implementation RFC
 
 **Status: implementation RFC only (25 October 2026). No start/stop control has been installed or activated.** The `OpenRGD/rgd-console` code contains a **read-only IMU panel** and an authenticated **publisher POST ingress**; the actual Paky-01 IMU publisher runs on **Ubuntu outside Docker**, and the current `api` container is deliberately unprivileged, has no `/dev` or Docker socket, and must remain that way.
 
@@ -61,67 +61,32 @@ existing imu_publish.py → existing token-protected Console POST
 - No USB device mount into the API container, motor/CAN permissions, or synchronization with the Somatic Runtime control loop.
 - Do not create an unauthenticated host TCP API, especially one reachable from the LAN. A Unix socket mounted from a verified host-only directory is the explicit boundary.
 
-## Contracts (candidate)
+## Shared Peripheral Manager contracts (supersedes IMU-only URLs)
 
-### GET (read-only status)
+**Architectural decision (2026-10-25):** This is the **first instance** of the common [Peripheral Manager v0.1 core](PERIPHERAL-MANAGER-CORE-v01.md), not a standalone IMU service API. The originally drafted `/peripherals/imu/publisher` URLs were provisional and have not shipped; do not implement them independently.
 
-`GET /api/v1/robots/paky-01/peripherals/imu/publisher`
+The versioned, generic candidate contracts now live at:
 
-Example response, always independently sourced:
+- `contracts/console/v1/peripheral-descriptor.v0.1-candidate.schema.json`
+- `contracts/console/v1/peripheral-status.v0.1-candidate.schema.json`
+- `contracts/console/v1/peripheral-action.v0.1-candidate.schema.json`
+- `contracts/console/v1/peripheral-action-result.v0.1-candidate.schema.json`
 
-```json
-{
-  "schema_version": "console.imu-publisher-control.v0.1-candidate",
-  "robot_id": "paky-01",
-  "peripheral_id": "torso-imu-01",
-  "publisher": {
-    "unit": "openrgd-paky01-imu.service",
-    "state": "running",
-    "enabled_on_boot": false,
-    "manager_available": true
-  },
-  "device": {
-    "connection": "present",
-    "identity": "configured_by_path"
-  },
-  "observation": {
-    "state": "live",
-    "last_received_at": "<verified source timestamp>",
-    "age_ms": 103
-  },
-  "operations": {
-    "can_start": true,
-    "can_stop": true,
-    "actuation_enabled": false
-  }
-}
+New future route shape (DESIGN ONLY):
+
+```text
+GET  /api/v1/robots/{robot_id}/peripherals
+GET  /api/v1/robots/{robot_id}/peripherals/{peripheral_id}
+POST /api/v1/robots/{robot_id}/peripherals/{peripheral_id}/actions
 ```
 
-Proposed finite values:
-- `publisher.state`: `not_installed` | `stopped` | `starting` | `running` | `stopping` | `failed` | `busy` | `unknown`.
-- `device.connection`: `present` | `missing` | `unknown`.
-- `observation.state`: `live` | `stale` | `no_source`.
-- The frontend must not display `LIVE` merely because `systemd` reports `running`. Console IMU `is_fresh(...,3000)` and actual websocket sample provenance remain the source of truth.
+The existing IMU read-only observation endpoint **continues unchanged** at `GET /api/v1/robots/{id}/imu` and the established `console.v1/type=imu` WebSocket. New lifecycle control requests are restricted to `acquisition.start` and `acquisition.stop` with a unique `request_id` and an optimistic `expected_status_revision`. The Console service never accepts user-supplied host paths, PIDs, shell commands, service names or motor-related actions.
 
-If host broker or socket is not installed, return a **specific `manager_available:false` with `not_installed`/503**, not a fake stopped sensor. The button must then be disabled with an explanation; **never silently start a fallback Python reader**.
+For Paky-01, `peripheral_id=torso-imu-01`, stream `imu.sensor_axes` (existing `console.imu.v0.1-candidate` schema), publisher `paky01-wit-publisher`, and a future, allowlisted host user unit `openrgd-paky01-imu.service`.
 
-### POST (idempotent operator request, no arbitrary arguments)
+The common snapshot reports **device**, **publisher**, and **observation streams** independently. In particular, a running service does **not** prove fresh IMU data, and a connected device does **not** imply the browser may start acquisition. The host broker must supply its actual status/permissions, or the Console reports `manager_unavailable` and disables actions.
 
-`POST /api/v1/robots/paky-01/peripherals/imu/publisher`
-
-Allowed JSON exactly:
-
-```json
-{ "desired_state": "running" }
-```
-
-or `{"desired_state":"stopped"}`.
-
-- Reject any other `robot_id`, unknown fields, arbitrary executable/path/PID/service name, frequency, baud, command arguments, motor-related operation or host path.
-- Only same-origin local browser requests with explicit scoped mutation header and CSRF protection; **this is not user authentication**. The Console gateway must remain loopback-only until a proper local-user auth gate exists.
-- Broker must verify its own Unix socket peer identity and constrain operations to the exact unit. No shell interpolation; if process ownership or unit configuration does not match, fail closed.
-- Return actual service transition/status; repeated `running` while already running and `stopped` while already stopped are safe/idempotent.
-- Prefer an audit `ConsoleEvent` with `event_kind="peripheral.imu.publisher.start_requested"/"stop_requested"` and `evidence_class="console_host_service_lifecycle_not_chronon"`, `chronon_id=null`. Never include token values, raw IMU JSON, arbitrary stdout/stderr or user secrets.
+The existing local `mutation_allowed` header is CSRF mitigation only, **not authentication**; before exposing the new control mutation API to a browser, implement and test the missing operator authority gate and trusted Unix peer permissions. The actual host broker / user service / UI control are **not yet installed**.
 
 ## Host service lifecycle
 
@@ -165,4 +130,4 @@ Paky-01   /   Periferiche   /   IMU · torso-imu-01
 6. **Pico regression:** `PULSE/IMU-1` K3 values eventually stale on stop, but existing `PULSE/1` synthetic 20/20 and 100/100 ACK, 4 skins and Color Lab remain unchanged.
 7. **Rollback:** stopping the managed service is safe; removing the optional API/broker/socket mount restores today's manual publisher workflows and Docker state without volume loss.
 
-**Current branch is deliberately an RFC, not a working on/off toggle.** Implement behind `CONSOLE_IMU_PUBLISHER_CONTROL_ENABLED=false` by default, in one small host service/broker wave followed by API/UI and physical commissioning. Never present unimplemented controls as active.
+**Current branch contains common candidate schemas, inert examples, pure Rust validation and two implementation RFCs — not a working on/off toggle.** Implement the generic Peripheral Manager behind an opt-in feature flag, then the reviewed IMU host-service/broker, API/UI and physical commissioning. Never present unimplemented controls as active.

@@ -9,6 +9,7 @@ on:
       - 'services/peripheral-manager/**'
       - 'scripts/peripheral-contract.test.mjs'
       - 'scripts/peripheral-host-contract.test.mjs'
+      - 'scripts/peripheral-host-preflight.sh'
       - '.github/workflows/peripheral-contract.yml'
   pull_request:
     paths:
@@ -19,6 +20,7 @@ on:
       - 'services/peripheral-manager/**'
       - 'scripts/peripheral-contract.test.mjs'
       - 'scripts/peripheral-host-contract.test.mjs'
+      - 'scripts/peripheral-host-preflight.sh'
       - '.github/workflows/peripheral-contract.yml'
 
 permissions:
@@ -58,3 +60,11 @@ jobs:
         run: python3 -m py_compile services/peripheral-manager/*.py
       - name: Mock-only systemd/Unix-socket/security/installer tests
         run: python3 -m unittest discover -s services/peripheral-manager/tests -p 'test_*.py' -v
+      - name: Preflight script syntax and absent-device fallback (no machine changes)
+        run: |
+          bash -n scripts/peripheral-host-preflight.sh
+          CONSOLE_SOURCE_DIR="$PWD" \
+          PAKY_SOURCE_DIR="$RUNNER_TEMP/uninstalled-paky-source" \
+            bash scripts/peripheral-host-preflight.sh > "$RUNNER_TEMP/peripheral-preflight.log"
+          grep -Fq 'PREFLIGHT COMPLETE / NO CHANGES' "$RUNNER_TEMP/peripheral-preflight.log"
+          grep -Fq 'No hardware serial port opened' "$RUNNER_TEMP/peripheral-preflight.log"

@@ -6,7 +6,10 @@ on:
       - 'examples/peripherals/**'
       - 'services/api/src/peripherals.rs'
       - 'services/api/src/main.rs'
+      - 'services/peripheral-manager/**'
       - 'scripts/peripheral-contract.test.mjs'
+      - 'scripts/peripheral-host-contract.test.mjs'
+      - 'scripts/peripheral-host-preflight.sh'
       - '.github/workflows/peripheral-contract.yml'
   pull_request:
     paths:
@@ -14,7 +17,10 @@ on:
       - 'examples/peripherals/**'
       - 'services/api/src/peripherals.rs'
       - 'services/api/src/main.rs'
+      - 'services/peripheral-manager/**'
       - 'scripts/peripheral-contract.test.mjs'
+      - 'scripts/peripheral-host-contract.test.mjs'
+      - 'scripts/peripheral-host-preflight.sh'
       - '.github/workflows/peripheral-contract.yml'
 
 permissions:
@@ -29,7 +35,7 @@ jobs:
         with:
           node-version: '22'
       - name: Check generic Peripheral Manager schema/examples/security invariants
-        run: node --test scripts/peripheral-contract.test.mjs
+        run: node --test scripts/peripheral-contract.test.mjs scripts/peripheral-host-contract.test.mjs
 
   pure-rust-domain:
     runs-on: ubuntu-latest
@@ -42,3 +48,23 @@ jobs:
         run: cargo test --manifest-path services/api/Cargo.toml peripherals::tests
       - name: Check formatting of peripheral Rust domain only
         run: rustfmt --edition 2021 --check services/api/src/peripherals.rs
+
+  host-manager:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Static compile of private host broker/installer/CLI
+        run: python3 -m py_compile services/peripheral-manager/*.py
+      - name: Mock-only systemd/Unix-socket/security/installer tests
+        run: python3 -m unittest discover -s services/peripheral-manager/tests -p 'test_*.py' -v
+      - name: Preflight script syntax and absent-device fallback (no machine changes)
+        run: |
+          bash -n scripts/peripheral-host-preflight.sh
+          CONSOLE_SOURCE_DIR="$PWD" \
+          PAKY_SOURCE_DIR="$RUNNER_TEMP/uninstalled-paky-source" \
+            bash scripts/peripheral-host-preflight.sh > "$RUNNER_TEMP/peripheral-preflight.log"
+          grep -Fq 'PREFLIGHT COMPLETE / NO CHANGES' "$RUNNER_TEMP/peripheral-preflight.log"
+          grep -Fq 'No hardware serial port opened' "$RUNNER_TEMP/peripheral-preflight.log"

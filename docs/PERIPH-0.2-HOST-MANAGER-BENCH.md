@@ -61,7 +61,9 @@ python3 services/peripheral-manager/install_paky01_imu.py \
     --paky-repo ~/openrgd/worktrees/paky-01-periph02
 ```
 
-Preflight verifies robot IMU schema/identity, both script paths, opt-in `--continuous` support, configured by-path/VID:PID/9600, user-owned **0600 token metadata** (secret NOT printed), and user HOME confinement. This check does **not** claim the actual USB is connected.
+Preflight verifies robot IMU schema/identity, both script paths, opt-in `--continuous` support, configured by-path/VID:PID/9600, user-owned **0600 token metadata** (secret NOT printed), and user HOME confinement. It also checks that the explicitly selected Python interpreter can `import serial`, **without opening the device**. This does **not** claim the actual USB is connected.
+
+**If the default `/usr/bin/python3` lacks `pyserial`:** use the same reviewed virtual environment that currently runs the physical publisher and explicitly provide `--python-bin /home/<operator>/<verified-venv>/bin/python` to both preflight and install commands. The installer does not install dependencies globally or guess another Python executable. To locate the interpreter **inside that already activated environment**, run `python3 -c 'import sys,serial; print(sys.executable)'`. Use that exact path; do not pass a shell command or options through `--python-bin`.
 
 Optional additional *read-only* host checks:
 ```bash
@@ -89,7 +91,7 @@ After reviewing preflight and ensuring no unrelated publisher is running, an exp
 python3 services/peripheral-manager/install_paky01_imu.py \
     --console-repo ~/openrgd/worktrees/rgd-console-periph02 \
     --paky-repo ~/openrgd/worktrees/paky-01-periph02 \
-    --install --confirm 'INSTALL PAKY01 IMU'
+    --install --confirm 'INSTALL PAKY01 IMU'\n# If preflight required a venv, repeat the identical --python-bin argument here.
 ```
 
 This creates **only**:

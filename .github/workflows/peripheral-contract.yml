@@ -6,6 +6,7 @@ on:
       - 'examples/peripherals/**'
       - 'services/api/src/peripherals.rs'
       - 'services/api/src/main.rs'
+      - 'services/peripheral-manager/**'
       - 'scripts/peripheral-contract.test.mjs'
       - '.github/workflows/peripheral-contract.yml'
   pull_request:
@@ -14,6 +15,7 @@ on:
       - 'examples/peripherals/**'
       - 'services/api/src/peripherals.rs'
       - 'services/api/src/main.rs'
+      - 'services/peripheral-manager/**'
       - 'scripts/peripheral-contract.test.mjs'
       - '.github/workflows/peripheral-contract.yml'
 
@@ -42,3 +44,15 @@ jobs:
         run: cargo test --manifest-path services/api/Cargo.toml peripherals::tests
       - name: Check formatting of peripheral Rust domain only
         run: rustfmt --edition 2021 --check services/api/src/peripherals.rs
+
+  host-manager:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Static compile of private host broker/installer/CLI
+        run: python3 -m py_compile services/peripheral-manager/*.py
+      - name: Mock-only systemd/Unix-socket/security/installer tests
+        run: python3 -m unittest discover -s services/peripheral-manager/tests -p 'test_*.py' -v

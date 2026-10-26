@@ -1,6 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { readFileSync, mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { spawnSync } from 'node:child_process';
 
 const src = path => readFileSync(new URL('../' + path, import.meta.url), 'utf8');
@@ -108,10 +110,47 @@ test('optional canary script is Bash-valid and never recreates active Compose or
   assert.match(sh,/method GET HEAD/);
   assert.match(sh,/reverse_proxy @api_read api:8080/);
   assert.match(sh,/respond @api_block "Preview API is read-only" 405/);
-  assert.match(sh,/validate --config \/etc\/caddy\/Caddyfile --adapter caddyfile/);
+  assert.match(sh,/--entrypoint caddy "\$CADDY_IMAGE" validate --config \/etc\/caddy\/Caddyfile --adapter caddyfile/);
   assert.match(sh,/reverse_proxy rgd-torso-v01-web:3000/);
   assert.match(sh,/docker run --rm -d --pull=never/);
   assert.match(sh,/--network "\$NETWORK"/);
   assert.match(sh,/--cap-drop ALL --security-opt no-new-privileges/);
   assert.doesNotMatch(sh,/docker compose (?:up|down|build)|docker volume (?:prune|rm)|--privileged|--device|docker\.sock|systemctl|motor\.command/);
+});
+
+
+test('canary up passes explicit Caddy executable in real shell argv, with Docker/curl mocked', () => {
+  // Static Bash parsing alone missed two launch failures: a duplicated \ at EOL
+  // and passing "validate" instead of "caddy validate" as container command.
+  const tmp = mkdtempSync(join(tmpdir(), 'rgd-torso-canary-'));
+  try {
+    const bin = join(tmp, 'bin');
+    mkdirSync(bin);
+    const log = join(tmp, 'docker-argv.log');
+    writeFileSync(join(bin, 'sudo'), '#!/bin/sh\nexec "$@"\n', { mode: 0o755 });
+    writeFileSync(join(bin, 'docker'),
+      '#!/bin/sh\nprintf "%s|" "$@" >> "$DOCKER_ARGS_LOG"\nprintf "\\n" >> "$DOCKER_ARGS_LOG"\n' +
+      'if [ "$1" = container ] && [ "$2" = inspect ]; then exit 1; fi\nexit 0\n',
+      { mode: 0o755 });
+    writeFileSync(join(bin, 'curl'), '#!/bin/sh\nexit 0\n', { mode: 0o755 });
+    const run = spawnSync('bash', ['scripts/torso-cage-canary.sh', 'up'], {
+      encoding: 'utf8',
+      timeout: 10000,
+      env: { ...process.env, HOME: tmp, PATH: bin + ':' + process.env.PATH, DOCKER_ARGS_LOG: log },
+    });
+    assert.equal(run.status, 0, run.stderr);
+    assert.match(run.stdout, /PREVIEW LIVE: http:\/\/127\.0\.0\.1:8099\/live/);
+    const lines = readFileSync(log, 'utf8').trim().split('\n');
+    const validate = lines.find(line => line.includes('|caddy:2.10-alpine|validate|'));
+    assert.ok(validate, 'Expected Caddy validation docker run command in argv log');
+    assert.match(validate, /^run\|--rm\|--pull=never\|--network\|none\|--mount\|/);
+    assert.match(validate, /\|--entrypoint\|caddy\|caddy:2\.10-alpine\|validate\|--config\|\/etc\/caddy\/Caddyfile\|--adapter\|caddyfile\|$/);
+    assert.ok(lines.some(line => line.includes('|rgd-console-torso-preview:v0.1|')),
+      'Expected separate candidate web image launch');
+    const caddyfile = readFileSync(join(tmp, 'openrgd', 'preview', 'torso-cage-v01', 'Caddyfile'), 'utf8');
+    assert.match(caddyfile, /method GET HEAD/);
+    assert.match(caddyfile, /respond @api_block "Preview API is read-only" 405/);
+  } finally {
+    rmSync(tmp, { recursive: true, force: true });
+  }
 });

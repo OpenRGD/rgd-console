@@ -75,9 +75,22 @@ EOF
     ready=0
     cleanup_on_fail() {
       if [[ "$ready" != '1' ]]; then
+        # Keep failed containers until their status/logs are captured.
+        # Do not inspect complete container configuration or print environment/secrets.
+        echo '=== PREVIEW STARTUP DIAGNOSTICS (temporary containers only) ===' >&2
+        for name in "$GATEWAY" "$WEB"; do
+          if exists "$name"; then
+            echo "--- $name: state / exit code ---" >&2
+            sudo docker inspect --format '{{.State.Status}} exit={{.State.ExitCode}} error={{.State.Error}}' "$name" >&2 || true
+            echo "--- $name: last 35 log lines ---" >&2
+            sudo docker logs --tail 35 "$name" >&2 || true
+          else
+            echo "--- $name: no container to inspect ---" >&2
+          fi
+        done
         stop_one "$GATEWAY" || true
         stop_one "$WEB" || true
-        echo 'Preview startup failed; active Console was not modified.' >&2
+        echo 'Preview startup failed; only temporary preview containers removed. Active Console unchanged.' >&2
       fi
     }
     trap cleanup_on_fail EXIT
@@ -85,19 +98,24 @@ EOF
     # Validate config with the existing local image before creating any preview service.
     sudo docker run --rm --pull=never --network none \
       --mount "type=bind,src=${CADDYFILE},dst=/etc/caddy/Caddyfile,readonly" \
+      --cap-drop ALL --cap-add NET_BIND_SERVICE --security-opt no-new-privileges \
       --entrypoint caddy "$CADDY_IMAGE" validate --config /etc/caddy/Caddyfile --adapter caddyfile >/dev/null
 
-    sudo docker run --rm -d --pull=never --name "$WEB" \
+    sudo docker run -d --pull=never --name "$WEB" \
       --network "$NETWORK" \
       --read-only --tmpfs '/tmp:mode=1777' \
       --cap-drop ALL --security-opt no-new-privileges \
       "$IMAGE" >/dev/null
 
-    sudo docker run --rm -d --pull=never --name "$GATEWAY" \
+    # Caddy's binary has a file cap for NET_BIND_SERVICE. The running
+    # production Compose service also adds it; dropping ALL without re-adding
+    # can make Caddy exit during exec even when listening on unprivileged 8080.
+    # Do not --rm here: retain a crashed container long enough to read logs.
+    sudo docker run -d --pull=never --name "$GATEWAY" \
       --network "$NETWORK" \
       --publish "127.0.0.1:${PORT}:8080" \
       --mount "type=bind,src=${CADDYFILE},dst=/etc/caddy/Caddyfile,readonly" \
-      --cap-drop ALL --security-opt no-new-privileges \
+      --cap-drop ALL --cap-add NET_BIND_SERVICE --security-opt no-new-privileges \
       "$CADDY_IMAGE" >/dev/null
 
     # The preview gets API + WebSocket from the EXISTING Console API,

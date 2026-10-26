@@ -83,8 +83,8 @@ EOF
     trap cleanup_on_fail EXIT
 
     # Validate config with the existing local image before creating any preview service.
-    sudo docker run --rm --pull=never --network none \\
-      --mount "type=bind,src=${CADDYFILE},dst=/etc/caddy/Caddyfile,readonly" \\
+    sudo docker run --rm --pull=never --network none \
+      --mount "type=bind,src=${CADDYFILE},dst=/etc/caddy/Caddyfile,readonly" \
       "$CADDY_IMAGE" validate --config /etc/caddy/Caddyfile --adapter caddyfile >/dev/null
 
     sudo docker run --rm -d --pull=never --name "$WEB" \

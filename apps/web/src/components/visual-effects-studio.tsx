@@ -208,6 +208,37 @@ export function VisualEffectsStudio() {
     }
   }
 
+  function stageExpressionInScene(expression: EyeExpression) {
+    if (!validExpression(expression)) {
+      setMessage('Ricetta espressiva non valida: nessuna modifica alla bozza.');
+      return;
+    }
+    if (!(expression.expression_id in profile.expressions) && Object.keys(profile.expressions).length >= 32) {
+      setMessage('Catalogo pieno (massimo 32 espressioni per questa bozza).');
+      return;
+    }
+    const previous = profile.expressions[expression.expression_id];
+    if (previous && JSON.stringify(previous) !== JSON.stringify(expression) &&
+        !window.confirm('Esiste già ' + expression.expression_id + '. Sostituire la ricetta nella bozza? Le scene che la referenziano cambieranno in anteprima.')) return;
+    setProfile(current => {
+      const sceneTargets = current.scenes[activeScene] ?? [];
+      const newEyeTarget: EyeTarget = {
+        zone_id: EXPRESSIVE_ZONE.id, effect: 'eye_expression',
+        expression_id: expression.expression_id,
+      };
+      const nextScene = sceneTargets.some(t => t.zone_id === EXPRESSIVE_ZONE.id)
+        ? sceneTargets.map(t => t.zone_id === EXPRESSIVE_ZONE.id ? newEyeTarget : t)
+        : [...sceneTargets, newEyeTarget];
+      return {
+        ...current,
+        expressions: { ...current.expressions, [expression.expression_id]: expression },
+        zones: current.zones.some(z => z.id === EXPRESSIVE_ZONE.id) ? current.zones : [...current.zones, EXPRESSIVE_ZONE],
+        scenes: { ...current.scenes, [activeScene]: nextScene },
+      };
+    });
+    setMessage('Espressione ' + expression.expression_id + ' associata alla scena ' + activeScene + ' SOLO nella bozza. Nessun dispositivo è stato comandato.');
+  }
+
   function setRuleScene(value: string) {
     setProfile(p => ({ ...p, mappings: p.mappings.map((rule, i) => i === ruleIndex ? { ...rule, scene: value } : rule) }));
     setOverrideScene(null);

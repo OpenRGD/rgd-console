@@ -5,11 +5,11 @@ import type { CSSProperties } from 'react';
 import { BrainCircuit, CheckCircle2, Download, Eye, Plus, RotateCcw, ShieldAlert, Sparkles } from 'lucide-react';
 import './expressive-eyes.css';
 
-type EyeParams = {
+export type EyeParams = {
   openness: number; gaze_x: number; gaze_y: number;
   pupil_scale: number; brow_tilt_deg: number;
 };
-type EyeExpression = {
+export type EyeExpression = {
   schema_version: 'openrgd.visual.eye-expression.v0.1-candidate';
   expression_id: string; label: string; origin: 'operator' | 'cognitive_proposal';
   affect: { valence: number; arousal: number; intensity: number };
@@ -46,7 +46,7 @@ const PROPOSAL_KEYS = [
   'approval_required_for_persistence', 'hardware_execution_authorized', 'expression',
 ];
 
-const DEMO_EXPRESSION: EyeExpression = {
+export const DEMO_EXPRESSION: EyeExpression = {
   schema_version: 'openrgd.visual.eye-expression.v0.1-candidate',
   expression_id: 'meraviglia_curiosa',
   label: 'Meraviglia curiosa',
@@ -96,7 +96,7 @@ function isEye(value: unknown): value is EyeParams {
     numeric(value.gaze_y, -.6, .6) && numeric(value.pupil_scale, .6, 1.4) &&
     numeric(value.brow_tilt_deg, -20, 20);
 }
-function validExpression(value: unknown): value is EyeExpression {
+export function validExpression(value: unknown): value is EyeExpression {
   if (!exact(value, EXPR_KEYS)) return false;
   if (value.schema_version !== DEMO_EXPRESSION.schema_version ||
     typeof value.expression_id !== 'string' || !/^[a-z][a-z0-9_]{2,47}$/.test(value.expression_id)) return false;
@@ -132,7 +132,7 @@ function validProposal(value: unknown): value is Proposal {
     validExpression(value.expression) && value.expression.origin === 'cognitive_proposal';
 }
 
-function EyeScreen({ eye, side, expression, blink }: {
+export function EyeScreen({ eye, side, expression, blink }: {
   eye: EyeParams; side: 'left' | 'right'; expression: EyeExpression; blink: boolean;
 }) {
   const cy = 83;
@@ -173,7 +173,10 @@ function RangeControl({ label, value, min, max, step, onChange }: {
   </label>;
 }
 
-export function ExpressiveEyesStudio() {
+export function ExpressiveEyesStudio({ stageInScene, currentSceneLabel }: {
+  stageInScene?: (expression: EyeExpression) => void;
+  currentSceneLabel?: string;
+}) {
   const [current, setCurrent] = useState<EyeExpression>(DEMO_EXPRESSION);
   const [proposalJson, setProposalJson] = useState(JSON.stringify(DEMO_PROPOSAL, null, 2));
   const [previewSource, setPreviewSource] = useState('Esempio sintetico · nessun Cognitive System collegato');
@@ -341,6 +344,15 @@ export function ExpressiveEyesStudio() {
           <div className="mt-4 flex flex-wrap gap-2">
             <button type="button" onClick={saveLocalDraft} disabled={!isValid} className="rounded-lg border border-mint/40 bg-mint/10 px-3 py-2 text-xs text-mint disabled:opacity-40"><CheckCircle2 size={14} className="mr-1 inline"/> Salva bozza locale</button>
             <button type="button" onClick={exportExpression} disabled={!isValid} className="rounded-lg border border-line px-3 py-2 text-xs disabled:opacity-40"><Download size={14} className="mr-1 inline"/> Esporta JSON</button>
+            {stageInScene && <button type="button" disabled={!isValid}
+              onClick={() => {
+                if (!window.confirm('Inserire questa espressione nella scena ' + (currentSceneLabel ?? 'corrente') + ' e nella bozza del Visual Studio? Nessun display reale verrà comandato.')) return;
+                stageInScene(current);
+                setMessage('Espressione proposta alla scena corrente. Verifica il simulatore: nessun hardware è stato comandato.');
+              }}
+              className="rounded-lg border border-mint/40 bg-mint/10 px-3 py-2 text-xs font-semibold text-mint disabled:opacity-40">
+              <Plus size={14} className="mr-1 inline"/> Associa alla scena (bozza)
+            </button>}
           </div>
         </div>
       </div>

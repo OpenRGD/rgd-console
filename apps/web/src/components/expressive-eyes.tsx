@@ -110,7 +110,7 @@ function validExpression(value: unknown): value is EyeExpression {
     || !color(value.palette.background) || !color(value.palette.iris) || !color(value.palette.accent)
     || !integer(value.palette.ring_brightness_pct, 0, 40)) return false;
   if (!exact(value.animation, ['mode', 'blink_interval_ms', 'blink_duration_ms'])
-    || !['still', 'breathe', 'scan'].includes(String(value.animation.mode))
+    || typeof value.animation.mode !== 'string' || !['still', 'breathe', 'scan'].includes(value.animation.mode)
     || !integer(value.animation.blink_interval_ms, 2500, 12000)
     || !integer(value.animation.blink_duration_ms, 80, 250)) return false;
   return integer(value.duration_ms, 500, 12000);
@@ -123,7 +123,8 @@ function validProposal(value: unknown): value is Proposal {
     value.source_module === DEMO_PROPOSAL.source_module &&
     typeof value.source_session_id === 'string' && /^[a-f0-9]{32}$/.test(value.source_session_id) &&
     integer(value.source_sequence, 0, Number.MAX_SAFE_INTEGER) &&
-    typeof value.requested_at_utc === 'string' && /^\d{4}-\d{2}-\d{2}T/.test(value.requested_at_utc) &&
+    typeof value.requested_at_utc === 'string' &&
+    /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})$/.test(value.requested_at_utc) &&
     Number.isFinite(Date.parse(value.requested_at_utc)) &&
     value.presentation === 'transient_preview' &&
     value.approval_required_for_persistence === true &&

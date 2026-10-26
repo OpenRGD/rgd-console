@@ -8,26 +8,39 @@ import {
   ShieldCheck, Sparkles, SlidersHorizontal, Volume2,
 } from 'lucide-react';
 import './visual-effects-studio.css';
-import { ExpressiveEyesStudio } from './expressive-eyes';
+import { DEMO_EXPRESSION, EyeScreen, ExpressiveEyesStudio, validExpression } from './expressive-eyes';
+import type { EyeExpression } from './expressive-eyes';
 
-type Effect = 'solid' | 'pulse' | 'chase' | 'wave';
+type LightEffect = 'solid' | 'pulse' | 'chase' | 'wave';
+type Effect = LightEffect | 'eye_expression';
 type Binding = 'operator_reported' | 'planned';
 type Zone = { id: string; label: string; adapter_id: string | null; capabilities: Effect[]; binding_status: Binding };
-type Target = { zone_id: string; effect: Effect; color: string; brightness: number };
+type LightTarget = { zone_id: string; effect: LightEffect; color: string; brightness: number };
+type EyeTarget = { zone_id: string; effect: 'eye_expression'; expression_id: string };
+type Target = LightTarget | EyeTarget;
 type Mapping = { source: string; event: string; scene: string; priority: number };
 type StudioProfile = {
-  schema_version: 'openrgd.visual-studio.profile.v0.1-candidate';
+  schema_version: 'openrgd.visual-studio.profile.v0.2-candidate';
   robot_id: string;
   revision: number;
   zones: Zone[];
   scenes: Record<string, Target[]>;
+  expressions: Record<string, EyeExpression>;
   mappings: Mapping[];
   fallback_scene: string;
   non_actuating: true;
   preview_only: true;
 };
+type LegacyProfile = Omit<StudioProfile, 'schema_version' | 'expressions'> & {
+  schema_version: 'openrgd.visual-studio.profile.v0.1-candidate';
+};
 
-const STORAGE_KEY = 'openrgd.visual-studio.preview.v0.1';
+const STORAGE_KEY = 'openrgd.visual-studio.preview.v0.2';
+const OLD_STORAGE_KEY = 'openrgd.visual-studio.preview.v0.1';
+const EXPRESSIVE_ZONE: Zone = {
+  id: 'expressive-eyes', label: 'Occhi · due mini display (futuri)',
+  adapter_id: null, capabilities: ['eye_expression'], binding_status: 'planned',
+};
 const EVENTS = [
   { source: 'voice', event: 'listening.started', scene: 'listening', priority: 50 },
   { source: 'voice', event: 'inference.started', scene: 'thinking', priority: 50 },
@@ -39,12 +52,13 @@ const EVENTS = [
 ] satisfies Mapping[];
 
 const INITIAL: StudioProfile = {
-  schema_version: 'openrgd.visual-studio.profile.v0.1-candidate',
+  schema_version: 'openrgd.visual-studio.profile.v0.2-candidate',
   robot_id: 'paky-01',
   revision: 1,
   zones: [
     { id: 'face-ring', label: 'Anello RGB · testa', adapter_id: 'miracles-star-ble', capabilities: ['solid'], binding_status: 'operator_reported' },
     { id: 'room-lights', label: 'Luci ambiente · future', adapter_id: null, capabilities: ['solid', 'pulse'], binding_status: 'planned' },
+    EXPRESSIVE_ZONE,
   ],
   scenes: {
     idle: [{ zone_id: 'face-ring', effect: 'solid', color: '#FFFFFF', brightness: 10 }],
@@ -56,27 +70,66 @@ const INITIAL: StudioProfile = {
     welcome: [
       { zone_id: 'face-ring', effect: 'solid', color: '#40FAD2', brightness: 40 },
       { zone_id: 'room-lights', effect: 'pulse', color: '#40FAD2', brightness: 30 },
+      { zone_id: 'expressive-eyes', effect: 'eye_expression', expression_id: DEMO_EXPRESSION.expression_id },
     ],
   },
+  expressions: { [DEMO_EXPRESSION.expression_id]: DEMO_EXPRESSION },
   mappings: EVENTS,
   fallback_scene: 'idle',
   non_actuating: true,
   preview_only: true,
 };
 
-function isDraft(candidate: unknown): candidate is StudioProfile {
-  if (!candidate || typeof candidate !== 'object') return false;
-  const c = candidate as Record<string, unknown>;
-  return c.schema_version === INITIAL.schema_version
-    && c.robot_id === INITIAL.robot_id
-    && c.preview_only === true
-    && c.non_actuating === true
-    && Array.isArray(c.zones) && Array.isArray(c.mappings)
-    && typeof c.scenes === 'object' && c.scenes !== null;
+function isLightTarget(target: Target): target is LightTarget {
+  return target.effect !== 'eye_expression';
 }
-
-function sceneColor(target: Target | undefined): string {
+function sceneColor(target: LightTarget | undefined): string {
   return target?.brightness === 0 ? '#293442' : (target?.color ?? '#293442');
+}
+function validDraftBase(value: unknown): value is Record<string, unknown> {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
+  const c = value as Record<string, unknown>;
+  return c.robot_id === INITIAL.robot_id && c.preview_only === true
+    && c.non_actuating === true && typeof c.revision === 'number'
+    && Number.isSafeInteger(c.revision) && c.revision >= 1
+    && Array.isArray(c.zones) && Array.isArray(c.mappings)
+    && c.scenes !== null && typeof c.scenes === 'object' && !Array.isArray(c.scenes);
+}
+function isLegacyDraft(value: unknown): value is LegacyProfile {
+  return validDraftBase(value) &&
+    value.schema_version === 'openrgd.visual-studio.profile.v0.1-candidate';
+}
+function isDraft(value: unknown): value is StudioProfile {
+  if (!validDraftBase(value) || value.schema_version !== INITIAL.schema_version) return false;
+  const expressions = value.expressions;
+  if (!expressions || typeof expressions !== 'object' || Array.isArray(expressions)) return false;
+  const catalog = expressions as Record<string, unknown>;
+  if (Object.keys(catalog).length > 32 ||
+    !Object.entries(catalog).every(([id, recipe]) =>
+      validExpression(recipe) && recipe.expression_id === id)) return false;
+  const scenes = value.scenes as Record<string, unknown>;
+  return Object.values(scenes).every(scene => Array.isArray(scene) && scene.length > 0 && scene.length <= 32 &&
+    scene.every((output: unknown) => {
+      if (!output || typeof output !== 'object' || Array.isArray(output)) return false;
+      const target = output as Record<string, unknown>;
+      if (target.effect === 'eye_expression') {
+        return Object.keys(target).sort().join(',') === 'effect,expression_id,zone_id' &&
+          typeof target.expression_id === 'string' && target.expression_id in catalog;
+      }
+      return ['solid','pulse','chase','wave'].includes(String(target.effect)) &&
+        typeof target.color === 'string' && /^#[0-9A-Fa-f]{6}$/.test(target.color) &&
+        typeof target.brightness === 'number' && Number.isInteger(target.brightness) &&
+        target.brightness >= 0 && target.brightness <= 100;
+    }));
+}
+function upgradeLegacyDraft(old: LegacyProfile): StudioProfile {
+  // The saved v0.1 user scene/rule data is preserved: no expression is
+  // silently assigned. Only a planned zone and empty catalog are added.
+  return {
+    ...old, schema_version: INITIAL.schema_version,
+    zones: old.zones.some(z => z.id === EXPRESSIVE_ZONE.id) ? old.zones : [...old.zones, EXPRESSIVE_ZONE],
+    expressions: {},
+  };
 }
 
 export function VisualEffectsStudio() {
@@ -92,6 +145,12 @@ export function VisualEffectsStudio() {
       if (saved) {
         const parsed: unknown = JSON.parse(saved);
         if (isDraft(parsed)) setProfile(parsed);
+      } else {
+        const legacy = localStorage.getItem(OLD_STORAGE_KEY);
+        if (legacy) {
+          const parsed: unknown = JSON.parse(legacy);
+          if (isLegacyDraft(parsed)) setProfile(upgradeLegacyDraft(parsed));
+        }
       }
     } catch {
       // Invalid local draft never becomes a runtime config.
@@ -110,14 +169,22 @@ export function VisualEffectsStudio() {
   const activeScene = overrideScene && profile.scenes[overrideScene] ? overrideScene :
     (profile.scenes[selectedRule?.scene] ? selectedRule.scene : profile.fallback_scene);
   const targets = profile.scenes[activeScene] ?? [];
-  const face = targets.find(target => target.zone_id === 'face-ring');
+  const face = targets.find((target): target is LightTarget => target.zone_id === 'face-ring' && isLightTarget(target));
+  const eyesTarget = targets.find((target): target is EyeTarget => target.effect === 'eye_expression');
+  const activeEyeExpression = eyesTarget ? profile.expressions[eyesTarget.expression_id] : undefined;
   const activeEffects = targets.map(target => target.effect);
   const ringStyle = { '--ve-color': sceneColor(face), opacity: face ? Math.max(0.16, face.brightness / 100) : 0.2 } as CSSProperties;
 
   const replaceTargets = (next: Target[]) => setProfile(p => ({ ...p, scenes: { ...p.scenes, [activeScene]: next } }));
 
-  function updateTarget(zoneId: string, patch: Partial<Target>) {
-    replaceTargets(targets.map(item => item.zone_id === zoneId ? { ...item, ...patch } : item));
+  function updateLightTarget(zoneId: string, patch: Partial<LightTarget>) {
+    replaceTargets(targets.map(item => item.zone_id === zoneId && isLightTarget(item) ?
+      { ...item, ...patch } : item));
+  }
+  function chooseExpression(zoneId: string, expressionId: string) {
+    if (!(expressionId in profile.expressions)) return;
+    replaceTargets(targets.map(item => item.zone_id === zoneId && item.effect === 'eye_expression' ?
+      { ...item, expression_id: expressionId } : item));
   }
 
   function toggleZone(zoneId: string) {
@@ -128,7 +195,16 @@ export function VisualEffectsStudio() {
       }
       replaceTargets(targets.filter(target => target.zone_id !== zoneId));
     } else {
-      replaceTargets([...targets, { zone_id: zoneId, effect: 'solid', color: '#40FAD2', brightness: 25 }]);
+      if (zoneId === EXPRESSIVE_ZONE.id) {
+        const expressionId = Object.keys(profile.expressions)[0];
+        if (!expressionId) {
+          setMessage('Crea prima un’espressione nell’editor degli occhi, poi associane la zona.');
+          return;
+        }
+        replaceTargets([...targets, { zone_id: zoneId, effect: 'eye_expression', expression_id: expressionId }]);
+      } else {
+        replaceTargets([...targets, { zone_id: zoneId, effect: 'solid', color: '#40FAD2', brightness: 25 }]);
+      }
     }
   }
 
@@ -173,6 +249,7 @@ export function VisualEffectsStudio() {
   function reset() {
     if (!window.confirm('Ripristinare soltanto la bozza del browser? Nessun dispositivo sarà modificato.')) return;
     localStorage.removeItem(STORAGE_KEY);
+    localStorage.removeItem(OLD_STORAGE_KEY);
     setProfile(INITIAL);
     setRuleIndex(2);
     setOverrideScene(null);

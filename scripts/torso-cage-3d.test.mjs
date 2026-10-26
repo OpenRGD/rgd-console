@@ -93,3 +93,18 @@ test('existing IMU contract and WIT fan-out paths are reused without changes', (
   assert.match(routes,/imu_replay/);
   assert.match(routes,/input\.host_monotonic_ns < previous\.host_monotonic_ns/);
 });
+
+
+test('optional canary script is Bash-valid and never recreates active Compose or exposes LAN port', () => {
+  const sh=src('scripts/torso-cage-canary.sh');
+  const parsed=spawnSync('bash',['-n'],{input:sh,encoding:'utf8',timeout:10000});
+  assert.equal(parsed.status,0,parsed.stderr);
+  assert.match(sh,/rgd-console-torso-preview:v0\.1/);
+  assert.match(sh,/--publish "127\.0\.0\.1:/);
+  assert.match(sh,/reverse_proxy api:8080/);
+  assert.match(sh,/reverse_proxy rgd-torso-v01-web:3000/);
+  assert.match(sh,/docker run --rm -d --pull=never/);
+  assert.match(sh,/--network "\$NETWORK"/);
+  assert.match(sh,/--cap-drop ALL --security-opt no-new-privileges/);
+  assert.doesNotMatch(sh,/docker compose (?:up|down|build)|docker volume (?:prune|rm)|--privileged|--device|docker\.sock|systemctl|motor\.command/);
+});

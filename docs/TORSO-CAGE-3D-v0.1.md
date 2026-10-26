@@ -96,6 +96,38 @@ Do not use docker compose up from the detached review worktree: it can collide w
 
 This is an operator procedure, NOT evidence these commands have yet been run. Never run docker compose down -v.
 
+## Isolated local browser canary (BEFORE PR merge or production web replacement)
+
+The operator already built the separate Docker image tagged rgd-console-torso-preview:v0.1 from revision d60316a and ran 9/9 focused static tests on Ubuntu. No active service has been changed.
+
+The frontend can be tested against the **real existing Console API + WebSocket** without replacing production web on 8088. The documented canary script launches TWO non-persistent containers connected to the existing *openrgd-console_default* Docker network:
+
+- candidate Next.js web image: rgd-console-torso-preview:v0.1
+- Caddy gateway caddy:2.10-alpine, bound ONLY to 127.0.0.1:8099; /api/* and /healthz route to existing api:8080, all other paths to the candidate web.
+
+The script checks the original 8088 health endpoint, the network, both local images and name conflicts before starting. If startup fails, it removes only its two preview containers. It never runs docker compose up/down, replaces the live web, mounts USB or writes any data volume.
+
+Get the latest reviewed preview script into the EXISTING detached worktree:
+
+    cd ~/openrgd/repos/openrgd-console
+    git fetch origin
+    git -C ../rgd-console-torso-review status --short --branch
+    git -C ../rgd-console-torso-review switch --detach origin/feat/torso-cage-3d
+
+Then:
+
+    cd ~/openrgd/repos/rgd-console-torso-review
+    bash scripts/torso-cage-canary.sh up
+
+Open **http://127.0.0.1:8099/live** in Firefox running locally on the mini-PC. The ordinary Console remains **http://127.0.0.1:8088/live**. To inspect or remove the preview without affecting production:
+
+    bash scripts/torso-cage-canary.sh status
+    bash scripts/torso-cage-canary.sh down
+
+The preview uses the same physical IMU observation fan-out as the original Console, so it will show NO SOURCE/STALE if the existing IMU publisher is not running. Never start a second serial owner to "make the UI live". If remotely viewing the mini-PC, use an authenticated SSH tunnel instead of opening port 8099 on the LAN.
+
+Only after Firefox/WebGL, selected robot, relative tilt signs, zero button and freshness are explicitly validated should maintainers consider merging and rolling out the actual web service. The PR must remain draft until that manual gate passes.
+
 ## Acceptance checklist
 
 1. Select Paky-01 in /live and open CORPO 3D; show a proportional cage, 25cm top rail and 11cm amber horizontal plane.

@@ -1,0 +1,73 @@
+.ve-expressive-pair {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: stretch;
+  gap: 14px;
+  border: 1px solid #263748;
+  border-radius: 18px;
+  padding: 18px;
+  background:
+    radial-gradient(circle at center, color-mix(in srgb, var(--ve-ring-accent) 12%, transparent), transparent 65%),
+    #09111c;
+}
+
+.ve-expressive-screen {
+  position: relative;
+  overflow: hidden;
+  border: 4px solid #354d60;
+  border-radius: 17px;
+  box-shadow: 0 0 23px #02070b inset, 0 2px 9px #000a;
+  background: #07111c;
+}
+
+.ve-expressive-screen svg {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.ve-expressive-screen-tag {
+  position: absolute;
+  z-index: 2;
+  left: 8px;
+  bottom: 5px;
+  padding: 3px 6px;
+  border-radius: 5px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 8px;
+  letter-spacing: .05em;
+  color: #bdcbd4;
+  background: rgba(2, 8, 12, .75);
+  pointer-events: none;
+}
+
+.ve-iris-breathe {
+  animation: ve-iris-breathe 5s ease-in-out infinite;
+  transform-origin: center;
+}
+.ve-iris-scan {
+  animation: ve-iris-scan 5s ease-in-out infinite;
+  transform-origin: center;
+}
+
+@keyframes ve-iris-breathe {
+  0%, 100% { opacity: .88; }
+  50% { opacity: 1; }
+}
+
+@keyframes ve-iris-scan {
+  0%, 100% { transform: translate(-6px, 0); }
+  50% { transform: translate(6px, -2px); }
+}
+
+@media (max-width: 610px) {
+  .ve-expressive-pair { padding: 8px; gap: 7px; }
+  .ve-expressive-screen { border-width: 2px; }
+  .ve-expressive-screen-tag { font-size: 6px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ve-iris-breathe, .ve-iris-scan {
+    animation: none !important;
+  }
+}

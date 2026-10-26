@@ -173,11 +173,13 @@ function RangeControl({ label, value, min, max, step, onChange }: {
   </label>;
 }
 
-export function ExpressiveEyesStudio({ stageInScene, currentSceneLabel }: {
+export function ExpressiveEyesStudio({ stageInScene, currentSceneLabel, targetRobotId }: {
   stageInScene?: (expression: EyeExpression) => void;
   currentSceneLabel?: string;
+  targetRobotId: string;
 }) {
   const [current, setCurrent] = useState<EyeExpression>(DEMO_EXPRESSION);
+  const [proposalRobotId, setProposalRobotId] = useState<string | null>(DEMO_PROPOSAL.robot_id);
   const [proposalJson, setProposalJson] = useState(JSON.stringify(DEMO_PROPOSAL, null, 2));
   const [previewSource, setPreviewSource] = useState('Esempio sintetico · nessun Cognitive System collegato');
   const [saved, setSaved] = useState<EyeExpression[]>([]);
@@ -186,7 +188,7 @@ export function ExpressiveEyesStudio({ stageInScene, currentSceneLabel }: {
 
   useEffect(() => {
     try {
-      const raw = localStorage.getItem(SAVE_KEY);
+      const raw = localStorage.getItem(SAVE_KEY + '.' + targetRobotId);
       const parsed: unknown = raw ? JSON.parse(raw) : [];
       if (Array.isArray(parsed)) setSaved(parsed.filter(validExpression).slice(0, 24));
     } catch { /* Corrupted local drafts do not affect the robot. */ }
@@ -220,6 +222,7 @@ export function ExpressiveEyesStudio({ stageInScene, currentSceneLabel }: {
   }
   function reset() {
     setCurrent(DEMO_EXPRESSION);
+    setProposalRobotId(DEMO_PROPOSAL.robot_id);
     setProposalJson(JSON.stringify(DEMO_PROPOSAL, null, 2));
     setPreviewSource('Esempio sintetico · nessun Cognitive System collegato');
     setMessage('Anteprima ripristinata: nessun effetto sul robot.');
@@ -231,23 +234,31 @@ export function ExpressiveEyesStudio({ stageInScene, currentSceneLabel }: {
       if (!validProposal(input)) throw new Error('Schema cognitivo candidato non valido.');
       const proposal = input;
       setCurrent(proposal.expression);
+      setProposalRobotId(proposal.robot_id);
       setPreviewSource('Proposta simulata ' + proposal.proposal_id.slice(0, 8) + ' · ' + proposal.source_module);
-      setMessage('Proposta accettata soltanto in anteprima. Nessun preset registrato o display comandato.');
+      setMessage(proposal.robot_id === targetRobotId
+        ? 'Proposta accettata soltanto in anteprima. Nessun preset registrato o display comandato.'
+        : 'Proposta visibile in anteprima, ma destinata a ' + proposal.robot_id + '. Non può essere associata al profilo ' + targetRobotId + '.');
     } catch (err) {
       setMessage('Proposta rifiutata: ' + (err instanceof Error ? err.message : 'JSON non valido'));
     }
   }
   function createOperatorExpression() {
     setCurrent(v => ({ ...v, origin: 'operator', expression_id: 'nuova_espressione', label: 'Nuova espressione' }));
+    setProposalRobotId(null);
     setPreviewSource('Bozza manuale operatore');
     setMessage('Modifica nome, sguardo e palette per definire una nuova espressione.');
   }
   function saveLocalDraft() {
     if (!validExpression(current)) { setMessage('Correggi prima identificatore e parametri: non sono validi.'); return; }
+    if (current.origin === 'cognitive_proposal' && proposalRobotId !== targetRobotId) {
+      setMessage('La proposta cognitiva è destinata a ' + (proposalRobotId ?? 'un robot sconosciuto') + '. Seleziona il robot corretto prima di archiviare la bozza.');
+      return;
+    }
     if (!window.confirm('Salvare una bozza nel browser? Non sarà attivata sul robot, né approvata per l’hardware.')) return;
     const items = [current, ...saved.filter(item => item.expression_id !== current.expression_id)].slice(0, 24);
     try {
-      localStorage.setItem(SAVE_KEY, JSON.stringify(items));
+      localStorage.setItem(SAVE_KEY + '.' + targetRobotId, JSON.stringify(items));
       setSaved(items);
       setMessage('Bozza salvata SOLO in questo browser. La pubblicazione nel catalogo del robot resta separata.');
     } catch { setMessage('Memorizzazione locale non disponibile. Nessun dispositivo è stato modificato.'); }
@@ -346,6 +357,10 @@ export function ExpressiveEyesStudio({ stageInScene, currentSceneLabel }: {
             <button type="button" onClick={exportExpression} disabled={!isValid} className="rounded-lg border border-line px-3 py-2 text-xs disabled:opacity-40"><Download size={14} className="mr-1 inline"/> Esporta JSON</button>
             {stageInScene && <button type="button" disabled={!isValid}
               onClick={() => {
+                if (current.origin === 'cognitive_proposal' && proposalRobotId !== targetRobotId) {
+                  setMessage('Questa proposta è destinata a ' + (proposalRobotId ?? 'un robot sconosciuto') + ', non a ' + targetRobotId + '. Passa al profilo corretto.');
+                  return;
+                }
                 if (!window.confirm('Inserire questa espressione nella scena ' + (currentSceneLabel ?? 'corrente') + ' e nella bozza del Visual Studio? Nessun display reale verrà comandato.')) return;
                 stageInScene(current);
                 setMessage('Espressione proposta alla scena corrente. Verifica il simulatore: nessun hardware è stato comandato.');
@@ -372,7 +387,7 @@ export function ExpressiveEyesStudio({ stageInScene, currentSceneLabel }: {
         <div className="rounded-xl border border-line p-4">
           <div className="mb-3 text-xs font-semibold">Catalogo bozze del browser ({saved.length}/24)</div>
           {saved.length === 0 ? <p className="text-[11px] text-muted">Nessuna espressione salvata. Le proposte cognitive non vengono archiviate automaticamente.</p> :
-            <div className="space-y-2">{saved.map(item => <button type="button" key={item.expression_id} onClick={() => { setCurrent(item); setPreviewSource('Catalogo bozze locale'); }}
+            <div className="space-y-2">{saved.map(item => <button type="button" key={item.expression_id} onClick={() => { setCurrent(item); setProposalRobotId(targetRobotId); setPreviewSource('Catalogo bozze locale · ' + targetRobotId); }}
               className="flex w-full items-center justify-between rounded-lg border border-line p-2.5 text-left text-xs hover:border-mint/30">
               <span>{item.label}<span className="mt-1 block font-mono text-[10px] text-muted">{item.expression_id}</span></span>
               <span className="text-[10px] text-muted">{item.origin === 'operator' ? 'OPERATORE' : 'PROPOSTA'}</span>

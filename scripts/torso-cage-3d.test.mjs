@@ -101,7 +101,10 @@ test('optional canary script is Bash-valid and never recreates active Compose or
   assert.equal(parsed.status,0,parsed.stderr);
   assert.match(sh,/rgd-console-torso-preview:v0\.1/);
   assert.match(sh,/--publish "127\.0\.0\.1:/);
-  assert.match(sh,/reverse_proxy api:8080/);
+  assert.match(sh,/method GET HEAD/);
+  assert.match(sh,/reverse_proxy @api_read api:8080/);
+  assert.match(sh,/respond @api_block "Preview API is read-only" 405/);
+  assert.match(sh,/validate --config \/etc\/caddy\/Caddyfile --adapter caddyfile/);
   assert.match(sh,/reverse_proxy rgd-torso-v01-web:3000/);
   assert.match(sh,/docker run --rm -d --pull=never/);
   assert.match(sh,/--network "\$NETWORK"/);

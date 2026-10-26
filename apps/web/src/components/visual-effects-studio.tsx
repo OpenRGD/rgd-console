@@ -369,18 +369,38 @@ export function VisualEffectsStudio() {
                   <div><div className="text-[12px] font-semibold">{zone.label}</div><div className="mt-1 text-[10px] text-muted">{zone.binding_status === 'planned' ? 'Zona futura · non collegata' : 'Hardware riferito dall’operatore · non verificato qui'}</div></div>
                   <label className="flex items-center gap-2 text-[11px] text-slate-300"><input type="checkbox" checked={Boolean(target)} onChange={() => toggleZone(zone.id)} /> In scena</label>
                 </div>
-                {target && <div className="mt-4 grid gap-3 sm:grid-cols-2">
-                  <label className="text-[11px] text-muted">Colore <input type="color" aria-label={'Colore ' + zone.label} value={target.color} onChange={e => updateTarget(zone.id, { color: e.target.value.toUpperCase() })} className="mt-1 block h-10 w-full cursor-pointer rounded-lg border border-line bg-transparent" /></label>
-                  <label className="text-[11px] text-muted">Effetto
-                    <select value={target.effect} onChange={e => updateTarget(zone.id, { effect: e.target.value as Effect })} className="mt-1 h-10 w-full rounded-lg border border-line bg-[#182636] px-2 text-xs text-white">
-                      {(['solid','pulse','chase','wave'] as const).map(effect => <option key={effect} value={effect}>{effect}</option>)}
-                    </select>
-                  </label>
-                  <label className="col-span-full text-[11px] text-muted">Luminosità simulata · {target.brightness}%
-                    <input type="range" min="0" max="100" value={target.brightness} onChange={e => updateTarget(zone.id, { brightness: Number(e.target.value) })} className="mt-2 w-full accent-emerald-400" />
-                  </label>
-                  {!zone.capabilities.includes(target.effect) && <p className="col-span-full text-[11px] text-amber-300">Effetto non supportato dalle capacità dichiarate per questa zona: solo anteprima.</p>}
-                </div>}
+                {target && (target.effect === 'eye_expression'
+                  ? <div className="mt-4 space-y-2">
+                      <label className="block text-[11px] text-muted">Ricetta nel catalogo di questa bozza
+                        <select value={target.expression_id} onChange={e => chooseExpression(zone.id, e.target.value)}
+                          className="mt-2 w-full rounded-lg border border-line bg-[#182636] p-2 text-xs text-white">
+                          {Object.values(profile.expressions).map(expr =>
+                            <option key={expr.expression_id} value={expr.expression_id}>{expr.label} · {expr.expression_id}</option>)}
+                        </select>
+                      </label>
+                      <p className="text-[11px] text-amber-200">Eye Renderer virtuale. Nessun display fisico collegato.</p>
+                      {!zone.capabilities.includes('eye_expression') &&
+                        <p className="text-[11px] text-amber-200">La zona non dichiara la capacità `eye_expression`.</p>}
+                    </div>
+                  : <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                      <label className="text-[11px] text-muted">Colore <input type="color" aria-label={'Colore ' + zone.label} value={target.color}
+                        onChange={e => updateLightTarget(zone.id, { color: e.target.value.toUpperCase() })}
+                        className="mt-1 block h-10 w-full cursor-pointer rounded-lg border border-line bg-transparent" /></label>
+                      <label className="text-[11px] text-muted">Effetto
+                        <select value={target.effect} onChange={e => updateLightTarget(zone.id, { effect: e.target.value as LightEffect })}
+                          className="mt-1 h-10 w-full rounded-lg border border-line bg-[#182636] px-2 text-xs text-white">
+                          {(['solid','pulse','chase','wave'] as const).map(effect =>
+                            <option key={effect} value={effect}>{effect}</option>)}
+                        </select>
+                      </label>
+                      <label className="col-span-full text-[11px] text-muted">Luminosità simulata · {target.brightness}%
+                        <input type="range" min="0" max="100" value={target.brightness}
+                          onChange={e => updateLightTarget(zone.id, { brightness: Number(e.target.value) })}
+                          className="mt-2 w-full accent-emerald-400" />
+                      </label>
+                      {!zone.capabilities.includes(target.effect) &&
+                        <p className="col-span-full text-[11px] text-amber-300">Effetto non supportato dalle capacità dichiarate per questa zona: solo anteprima.</p>}
+                    </div>)}
               </div>;
             })}
           </div>

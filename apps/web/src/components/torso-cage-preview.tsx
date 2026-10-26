@@ -243,7 +243,7 @@ export default function TorsoCagePreview({ robotId, imu, connected, now, snapsho
             {' '}GIUNTI ANIMATI DA ENCODER: 0/22 (mappatura non verificata).
           </p>
         </div>}
-        {yawPose?.limited && <p className="cage-preview-warning">Yaw relativo limitato visivamente a ±90°.</p>
+        {yawPose?.limited && <p className="cage-preview-warning">Yaw relativo limitato visivamente a ±90°.</p>}
         <p className="cage-preview-disclaimer">* Prova yaw disattivata inizialmente: usa solo la variazione dell’angolo prodotto dal sensore, non una direzione assoluta. Il segno fisico dell’asse Z non è ancora verificato.</p>
         <p className="cage-preview-disclaimer">Assi visivi: X larghezza, Y altezza, Z profondità. I segni e la geometria canonici BHL/OpenRGD non sono validati.</p>
       </div>

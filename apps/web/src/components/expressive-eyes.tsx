@@ -316,7 +316,18 @@ export function ExpressiveEyesStudio() {
             <RangeControl label="Sguardo orizzontale (entrambi)" value={current.eyes.left.gaze_x} min={-.6} max={.6} step={.02} onChange={v => editBothEyes('gaze_x', v)}/>
             <RangeControl label="Sguardo verticale (entrambi)" value={current.eyes.left.gaze_y} min={-.6} max={.6} step={.02} onChange={v => editBothEyes('gaze_y', v)}/>
             <RangeControl label="Dimensione pupilla" value={current.eyes.left.pupil_scale} min={.6} max={1.4} step={.02} onChange={v => editBothEyes('pupil_scale', v)}/>
-            <RangeControl label="Inclinazione sopracciglia" value={current.eyes.left.brow_tilt_deg} min={-20} max={20} step={1} onChange={v => changeEye('left', 'brow_tilt_deg', v)}/>
+            <RangeControl label="Sopracciglio sinistro" value={current.eyes.left.brow_tilt_deg} min={-20} max={20} step={1} onChange={v => changeEye('left', 'brow_tilt_deg', v)}/>
+            <RangeControl label="Sopracciglio destro" value={current.eyes.right.brow_tilt_deg} min={-20} max={20} step={1} onChange={v => changeEye('right', 'brow_tilt_deg', v)}/>
+            <RangeControl label="Valenza espressiva" value={current.affect.valence} min={-1} max={1} step={.02} onChange={v => setCurrent(p => ({ ...p, affect: { ...p.affect, valence: v } }))}/>
+            <RangeControl label="Attivazione espressiva" value={current.affect.arousal} min={0} max={1} step={.02} onChange={v => setCurrent(p => ({ ...p, affect: { ...p.affect, arousal: v } }))}/>
+            <RangeControl label="Intensità espressiva" value={current.affect.intensity} min={0} max={1} step={.02} onChange={v => setCurrent(p => ({ ...p, affect: { ...p.affect, intensity: v } }))}/>
+            <RangeControl label="Intervallo battito (s)" value={current.animation.blink_interval_ms / 1000} min={2.5} max={12} step={.5} onChange={v => setCurrent(p => ({ ...p, animation: { ...p.animation, blink_interval_ms: Math.round(v * 1000) } }))}/>
+            <label className="text-[11px] text-muted">Movimento virtuale
+              <select className="mt-2 block h-8 w-full rounded-lg border border-line bg-[#101c28] text-xs text-white"
+                value={current.animation.mode} onChange={e => setCurrent(p => ({ ...p, animation: { ...p.animation, mode: e.target.value as EyeExpression['animation']['mode'] } }))}>
+                <option value="still">Statico</option><option value="breathe">Respirazione lenta</option><option value="scan">Esplorazione lenta</option>
+              </select>
+            </label>
             <RangeControl label="Luminosità LED simulata" value={current.palette.ring_brightness_pct} min={0} max={40} step={1} onChange={v => setCurrent(p => ({ ...p, palette: { ...p.palette, ring_brightness_pct: v } }))}/>
             <RangeControl label="Durata (secondi)" value={current.duration_ms / 1000} min={.5} max={12} step={.5} onChange={v => setCurrent(p => ({ ...p, duration_ms: Math.round(v * 1000) }))}/>
             <label className="text-[11px] text-muted">Colore iride
@@ -326,6 +337,7 @@ export function ExpressiveEyesStudio() {
               <input aria-label="Colore accento" type="color" className="mt-1 h-8 w-full" value={current.palette.accent} onChange={e => setCurrent(p => ({ ...p, palette: { ...p.palette, accent: e.target.value.toUpperCase() } }))}/>
             </label>
           </div>
+          <p className="mt-3 text-[10px] leading-5 text-muted">Valenza, attivazione e intensità sono coordinate della rappresentazione, non misure di uno stato emotivo interno. La geometria degli occhi rimane modificabile separatamente.</p>
           <div className="mt-4 flex flex-wrap gap-2">
             <button type="button" onClick={saveLocalDraft} disabled={!isValid} className="rounded-lg border border-mint/40 bg-mint/10 px-3 py-2 text-xs text-mint disabled:opacity-40"><CheckCircle2 size={14} className="mr-1 inline"/> Salva bozza locale</button>
             <button type="button" onClick={exportExpression} disabled={!isValid} className="rounded-lg border border-line px-3 py-2 text-xs disabled:opacity-40"><Download size={14} className="mr-1 inline"/> Esporta JSON</button>

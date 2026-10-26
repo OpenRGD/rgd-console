@@ -8,6 +8,8 @@ export const CAGE_IMU_FRAME_ID = 'paky01_imu_sensor_unverified';
 export const CAGE_PREVIEW_STALE_AFTER_MS = 3000;
 export const CAGE_PREVIEW_FUTURE_TOLERANCE_MS = 1500;
 export const CAGE_PREVIEW_TILT_LIMIT_DEG = 35;
+// Only an operator-enabled SCHEMATIC yaw preview. NOT absolute heading.
+export const CAGE_PREVIEW_YAW_LIMIT_DEG = 90;
 
 /**
  * Metres, in the OPERATOR'S cage frame only:
@@ -33,14 +35,23 @@ export interface VisualZero {
   sourceKey: string;
   rollDeg: number;
   pitchDeg: number;
+  yawDeg: number;
+}
+
+export interface RelativeYawPreview {
+  yawRelativeDeg: number;
+  rotationYRad: number;
+  limited: boolean;
 }
 
 export interface RelativeCagePose {
   rollDeg: number;
   pitchDeg: number;
-  // Three.js axes: X width, Y up, Z front for a SCHEMATIC display only.
-  // +sensor roll -> cage leans to its nominal right (+X).
-  // +sensor pitch -> cage leans to its nominal front (+Z).
+  // Three.js viewer: X width, Y up, Z front; SCHEMATIC display only.
+  // Browser/operator feedback 2026-10-26: the prior negative-Z mapping
+  // visually inverted RIGHT/LEFT; flip SCENE roll direction only.
+  // These are visualization axes, NOT calibrated body-frame extrinsics.
+  // +sensor pitch -> schematic cage leans to its nominal front (+Z).
   rotationXRad: number;
   rotationZRad: number;
   limited: boolean;
@@ -90,7 +101,8 @@ function limit(degrees: number): number {
 }
 
 /**
- * Never uses uncalibrated yaw or mutates device/body calibration.
+ * Does not use yaw; it is handled separately by an explicit experimental
+ * display-only toggle. Never mutates device/body calibration.
  * A first fresh sample or operator click establishes only a DISPLAY baseline.
  */
 export function relativeCagePose(imu: ImuObservation, zero: VisualZero): RelativeCagePose {
@@ -104,7 +116,32 @@ export function relativeCagePose(imu: ImuObservation, zero: VisualZero): Relativ
     rollDeg: roll,
     pitchDeg: pitch,
     rotationXRad: pitch * radians,
-    rotationZRad: -roll * radians,
+    rotationZRad: roll * radians,
     limited: roll !== rawRoll || pitch !== rawPitch,
+  };
+}
+
+
+/**
+ * OPTIONAL, uncalibrated relative vendor-fusion yaw for visualization only.
+ * The operator must explicitly enable this; by default the 3D scene uses Y=0.
+ *
+ * This is NOT north/world heading or a verified physical Z-axis sign.
+ * The shortest wrapped delta works across ±180 degrees for small relative turns,
+ * but can jump under magnetic interference, drift or turns exceeding 180°.
+ * It never integrates gyro readings or invents acquisition timestamps.
+ */
+export function relativeYawPreview(imu: ImuObservation, zero: VisualZero): RelativeYawPreview {
+  if (zero.sourceKey !== imuSourceKey(imu)) throw new Error('yaw visual zero belongs to another session');
+  if (!Number.isFinite(zero.yawDeg) || !Number.isFinite(imu.orientation_euler_deg[2])) {
+    throw new Error('invalid uncalibrated yaw');
+  }
+  const rawYaw = shortestDeltaDegrees(imu.orientation_euler_deg[2], zero.yawDeg);
+  const yawRelativeDeg = Math.max(-CAGE_PREVIEW_YAW_LIMIT_DEG,
+    Math.min(CAGE_PREVIEW_YAW_LIMIT_DEG, rawYaw));
+  return {
+    yawRelativeDeg,
+    rotationYRad: yawRelativeDeg * (Math.PI / 180),
+    limited: yawRelativeDeg !== rawYaw,
   };
 }

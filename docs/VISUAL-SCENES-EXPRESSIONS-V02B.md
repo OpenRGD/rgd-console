@@ -12,14 +12,21 @@ The Visual Effects Studio page now treats **expressive eye displays** as a typed
 4. The current scene simulator renders both the virtual RGB ring and two **virtual** eye displays for the referenced recipe. Mixed scenes may include room lights, but physical availability is never implied.
 5. Each logical display declares a capability `eye_expression` and a `planned` binding. `planned` is **not** live connected status.
 
+## Separate Paky-01 / Paky-02 preview workspaces
+
+- The UI has an explicit robot-preview selector. Paky-01 retains the operator-reported BLE ring and **planned** eyes. Paky-02 is a purely synthetic fixture: all lighting/display bindings are planned.
+- Each robot keeps a separate browser draft catalog and scene profile under `openrgd.visual-studio.preview.v0.2.<robot_id>`; neither is a runtime or robot profile.
+- The synthetic `meraviglia_curiosa` proposal for Paky-02 is preassociated with Paky-02's welcome preview. Paky-01's initial scenes do **not** receive that cognitive expression silently.
+- The Eye Designer checks `robot_id` before letting an explicit operator stage a cognitive-sourced expression. It may display another robot's proposal in preview, but refuses to assign or save it under a mismatched robot. There is no authenticated cognitive process in this stage.
+
 ## Non-destructive draft migration
 
-- Legacy browser key `openrgd.visual-studio.preview.v0.1` is read only when no v0.2 draft is present.
+- Legacy Paky-01 browser key `openrgd.visual-studio.preview.v0.1` is read only when no Paky-01 v0.2 draft is present.
 - Existing saved v0.1 scene mappings and colors are carried forward. A **planned eye zone** and empty catalog are added, but **no expression is silently inserted into existing scenes**.
-- The migrated draft is written to a *different* localStorage key `openrgd.visual-studio.preview.v0.2`. The original v0.1 saved profile remains intact until the operator explicitly chooses **Ripristina**.
+- The migrated draft is written to a *different* localStorage key `openrgd.visual-studio.preview.v0.2.paky-01`. The original v0.1 saved profile remains intact until the operator explicitly chooses **Ripristina**.
 - The original v0.1 source profile and validator remain intact in the Visual module; the v0.2 schema is separately versioned.
 
-The default *fresh* Studio preview includes a synthetic `meraviglia_curiosa` expression associated with the welcome scene. This is a fixture for demonstration, not an approved Cognitive memory or physical display effect.
+The fresh **Paky-02** preview includes a synthetic `meraviglia_curiosa` expression in the welcome scene. Paky-01 starts without an eye scene assignment. These are fixtures for demonstration, not approved Cognitive memory or physical display effects.
 
 ## Future Cognitive behavior
 

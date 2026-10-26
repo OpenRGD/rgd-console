@@ -156,8 +156,10 @@ export default function TorsoCagePreview({ robotId, imu, connected, now, snapsho
   return <section className="cage-preview" aria-label="Corpo 3D — gabbia schematica di Paky-01">
     <header className="cage-preview-header">
       <div>
-        <h2>GABBIA DEL TORSO <span>· ANTEPRIMA 3D</span></h2>
-        <p>Geometria riferita dall’operatore, non modello RGD verificato.</p>
+        <h2>{bodyMode === 'bhl_reference' ? 'STRUTTURA BHL V1' : 'GABBIA DEL TORSO'} <span>· ANTEPRIMA 3D</span></h2>
+        <p>{bodyMode === 'bhl_reference'
+          ? '22 giunti URDF di riferimento: arti nella posa matematica zero, non posizione fisica misurata.'
+          : 'Geometria riferita dall’operatore, non modello RGD verificato.'}</p>
       </div>
       <span className={fresh && pose ? 'cage-source-live' : 'cage-source-stale'} role="status">{state}</span>
     </header>

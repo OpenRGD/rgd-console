@@ -7,7 +7,7 @@
  * Values may be shown as unverified diagnostics only; NEVER drive FK.
  */
 import type { MotorTelemetry, TelemetrySnapshot } from './contracts';
-import { BHL_V1_ACTUATED_IDS } from './bhl-v1-reference';
+import { BHL_V1_ACTUATED_IDS } from './bhl-v1-reference.ts';
 
 export const BHL_ENCODER_DISPLAY_STALE_MS = 1500;
 export type EncoderDiagnosticStatus = 'NO_SOURCE' | 'STALE' | 'INVALID' | 'OBSERVED_UNVERIFIED_MAPPING' | 'AMBIGUOUS';

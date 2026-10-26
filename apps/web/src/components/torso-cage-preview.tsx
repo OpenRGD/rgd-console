@@ -9,7 +9,7 @@ import { useEffect, useState } from 'react';
 import type { ImuObservation } from '@/lib/contracts';
 import {
   CAGE_PREVIEW_ROBOT_ID, PAKY01_CAGE, imuSourceKey,
-  isCurrentPakyImu, isPakyImuSource, relativeCagePose,
+  isCurrentPakyImu, isPakyImuSource, relativeCagePose, relativeYawPreview,
   type VisualZero,
 } from '@/lib/torso-cage-geometry';
 import './torso-cage-preview.css';
@@ -92,28 +92,38 @@ export default function TorsoCagePreview({ robotId, imu, connected, now }: Props
   const fresh = isCurrentPakyImu(imu, robotId, connected, now);
   const sourceKey = sourceValid ? imuSourceKey(imu) : null;
   const [zero, setZero] = useState<VisualZero | null>(null);
+  // The current source has NO calibrated yaw transform. Experiment only on
+  // explicit operator activation; disabled by default and per source change.
+  const [yawPreviewEnabled, setYawPreviewEnabled] = useState(false);
 
-  // A visual reference cannot silently survive a robot change.
-  useEffect(() => setZero(null), [robotId]);
+  // A visual reference or experimental mode cannot survive a robot change.
+  useEffect(() => { setZero(null); setYawPreviewEnabled(false); }, [robotId]);
+  useEffect(() => { setYawPreviewEnabled(false); }, [sourceKey]);
 
   // Establish baseline at the FIRST trusted-shape FRESH frame per source session.
   useEffect(() => {
     if (!fresh || !sourceKey || !imu) return;
-    const [roll, pitch] = imu.orientation_euler_deg;
+    const [roll, pitch, yaw] = imu.orientation_euler_deg;
     setZero(previous => previous?.sourceKey === sourceKey ? previous :
-      { sourceKey, rollDeg: roll, pitchDeg: pitch });
-  }, [fresh, sourceKey, imu?.orientation_euler_deg[0], imu?.orientation_euler_deg[1]]);
+      { sourceKey, rollDeg: roll, pitchDeg: pitch, yawDeg: yaw });
+  }, [fresh, sourceKey, imu?.orientation_euler_deg[0], imu?.orientation_euler_deg[1], imu?.orientation_euler_deg[2]]);
 
   // When stale, the geometry stays in the LAST OBSERVED orientation and is visibly marked STALE;
   // there is no synthetic animation or extrapolated sensor motion.
   const pose = sourceValid && zero && zero.sourceKey === sourceKey
     ? relativeCagePose(imu, zero) : null;
-  const rotation: Rotation = pose ? [pose.rotationXRad, 0, pose.rotationZRad] : [0, 0, 0];
+  // Ordinary cage rotation remains yaw-free. Only an explicit visual-only
+  // toggle applies the vendor's UNCALIBRATED relative yaw about scene Y.
+  const yawPose = sourceValid && zero && zero.sourceKey === sourceKey && yawPreviewEnabled
+    ? relativeYawPreview(imu, zero) : null;
+  const rotation: Rotation = pose
+    ? [pose.rotationXRad, yawPose?.rotationYRad ?? 0, pose.rotationZRad]
+    : [0, 0, 0];
 
   const resetVisualZero = () => {
     if (!fresh || !imu || !sourceKey) return;
     setZero({ sourceKey, rollDeg: imu.orientation_euler_deg[0],
-      pitchDeg: imu.orientation_euler_deg[1] });
+      pitchDeg: imu.orientation_euler_deg[1], yawDeg: imu.orientation_euler_deg[2] });
   };
 
   const state = !correctRobot ? 'NON DISPONIBILE' :
@@ -162,26 +172,39 @@ export default function TorsoCagePreview({ robotId, imu, connected, now }: Props
           <div><span>PITCH Δ</span><strong>{fresh && pose ? numberOrDash(pose.pitchDeg) + '°' : '—'}</strong></div>
           <div><span>YAW* SENSORE</span><strong>{fresh && imu ? numberOrDash(imu.orientation_euler_deg[2]) + '°' : '—'}</strong></div>
         </div>
-        <button className="cage-preview-zero" type="button"
-          disabled={!fresh || !pose}
-          onClick={resetVisualZero}>
-          Imposta zero grafico
-        </button>
+        <div className="cage-preview-controls">
+          <button className="cage-preview-zero" type="button"
+            disabled={!fresh || !pose}
+            onClick={resetVisualZero}>
+            Imposta zero grafico
+          </button>
+          <button className="cage-preview-yaw-toggle" type="button"
+            aria-pressed={yawPreviewEnabled}
+            disabled={!fresh || !pose}
+            onClick={() => { if (fresh && pose) setYawPreviewEnabled(value => !value); }}
+            title="Solo yaw relativo da fusione sensore NON calibrata. Non è una direzione assoluta.">
+            {yawPreviewEnabled ? 'Disattiva yaw sperimentale' : 'Prova rotazione yaw relativa*'}
+          </button>
+        </div>
         <div className="cage-preview-status">
           <div><span>Accelerazione ‖a‖</span><strong>{fresh && imu
             ? numberOrDash(Math.hypot(...imu.acceleration_m_s2) / 9.80665, 3) + ' g' : '—'}</strong></div>
           <div><span>Velocità angolare ‖ω‖</span><strong>{fresh && imu
             ? numberOrDash(Math.hypot(...imu.angular_velocity_rad_s), 3) + ' rad/s' : '—'}</strong></div>
           <div><span>Campione</span><strong>{fresh && imu ? String(imu.sequence) : '—'}</strong></div>
+          <div><span>YAW Δ visivo*</span><strong>{fresh && yawPose
+            ? numberOrDash(yawPose.yawRelativeDeg) + '°' : 'DISATTIVATO'}</strong></div>
         </div>
-        {pose?.limited && <p className="cage-preview-warning">Vista limitata a ±35° per asse: non è una misura fisica completa.</p>}
+        {pose?.limited && <p className="cage-preview-warning">Roll/pitch limitati visivamente a ±35°: non è una misura fisica completa.</p>}
+        {yawPose?.limited && <p className="cage-preview-warning">Yaw relativo limitato visivamente a ±90°.</p>}
+        <p className="cage-preview-disclaimer">* Prova yaw disattivata inizialmente: usa solo la variazione dell’angolo prodotto dal sensore, non una direzione assoluta. Il segno fisico dell’asse Z non è ancora verificato.</p>
         <p className="cage-preview-disclaimer">Assi visivi: X larghezza, Y altezza, Z profondità. I segni e la geometria canonici BHL/OpenRGD non sono validati.</p>
       </div>
     </div>
 
     <footer className="cage-preview-footer">
       <p>La fascia ambrata indica <strong>soltanto la quota verticale Y=11 cm</strong>. La posizione X/Z del chip IMU è sconosciuta.</p>
-      <p><strong>YAW* NON CALIBRATO</strong> · rotazione yaw NON applicata · nessuna calibrazione o comando ai motori · decision_eligible=false.</p>
+      <p><strong>YAW* NON CALIBRATO</strong> · {yawPreviewEnabled ? 'rotazione relativa SPERIMENTALE, non orientamento assoluto' : 'rotazione yaw disattivata per impostazione predefinita'} · nessuna calibrazione o comando ai motori · decision_eligible=false.</p>
     </footer>
   </section>;
 }

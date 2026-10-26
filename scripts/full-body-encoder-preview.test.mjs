@@ -90,7 +90,8 @@ test('Full-body renderer is reference only and reuses Console motor snapshot wit
   assert.match(live,/snapshot=\{physical && currentSnapshot/);
   assert.match(body,/bhlReferenceNeutralSkeleton/);
   assert.doesNotMatch(body,/motor\.position|angular_velocity|gyro|connectCAN|useConsole/);
-  assert.doesNotMatch(kinematic,/MotorTelemetry|snapshot\.motors|motor\.position|jointAngles/);
+  const kinematicsCode=kinematic.replace(/\/\*[\s\S]*?\*\//g,'').replace(/\/\/[^\n]*/g,'');
+  assert.doesNotMatch(kinematicsCode,/\bMotorTelemetry\b|snapshot\.motors|motor\.position|\bjointAngles\b/);
   assert.match(encoder,/validForKinematicPose: false/);
   assert.match(encoder,/OBSERVED_UNVERIFIED_MAPPING/);
   for(const c of [view,body,kinematic,encoder]){

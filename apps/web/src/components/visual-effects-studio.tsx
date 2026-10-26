@@ -8,6 +8,7 @@ import {
   ShieldCheck, Sparkles, SlidersHorizontal, Volume2,
 } from 'lucide-react';
 import './visual-effects-studio.css';
+import { ExpressiveEyesStudio } from './expressive-eyes';
 
 type Effect = 'solid' | 'pulse' | 'chase' | 'wave';
 type Binding = 'operator_reported' | 'planned';
@@ -293,6 +294,7 @@ export function VisualEffectsStudio() {
         </section>
       </div>
 
+      <div className="mt-8"><ExpressiveEyesStudio /></div>
       <p role="status" className="mt-6 text-xs text-slate-400">{message}</p>
       <div className="mt-8 rounded-xl border border-line bg-[#0e1823] p-5 text-xs leading-6 text-muted">
         <p className="mb-1 flex items-center gap-2 font-semibold text-mint"><ShieldCheck size={15}/> Confine architetturale</p>

@@ -123,7 +123,7 @@ test('optional canary script is Bash-valid and never recreates active Compose or
   // backslash as IMAGE and fails with `docker: invalid reference format`.
   assert.equal(sh.includes(String.fromCharCode(92,92,10)),false,
     'Double backslash before newline breaks docker run image argument');
-  assert.match(sh,/rgd-console-torso-preview:v0\.1/);
+  assert.match(sh,/rgd-console-torso-preview:v0\.2/);
   assert.match(sh,/--publish "127\.0\.0\.1:/);
   assert.match(sh,/method GET HEAD/);
   assert.match(sh,/reverse_proxy @api_read api:8080/);
@@ -166,7 +166,7 @@ test('canary up passes explicit Caddy executable in real shell argv, with Docker
     assert.ok(validate, 'Expected Caddy validation docker run command in argv log');
     assert.match(validate, /^run\|--rm\|--pull=never\|--network\|none\|--mount\|/);
     assert.match(validate, /\|--entrypoint\|caddy\|caddy:2\.10-alpine\|validate\|--config\|\/etc\/caddy\/Caddyfile\|--adapter\|caddyfile\|$/);
-    assert.ok(lines.some(line => line.includes('|rgd-console-torso-preview:v0.1|')),
+    assert.ok(lines.some(line => line.includes('|rgd-console-torso-preview:v0.2|')),
       'Expected separate candidate web image launch');
     const gatewayRun = lines.find(line => line.includes('|--name|rgd-torso-v01-gateway|'));
     assert.ok(gatewayRun, 'Expected temporary preview Caddy gateway');

@@ -162,3 +162,61 @@ test('canary up passes explicit Caddy executable in real shell argv, with Docker
     rmSync(tmp, { recursive: true, force: true });
   }
 });
+
+
+test('canary startup failure captures exit code and logs before removing temporary containers', () => {
+  const tmp = mkdtempSync(join(tmpdir(), 'rgd-torso-failed-canary-'));
+  try {
+    const bin = join(tmp, 'bin');
+    mkdirSync(bin);
+    const log = join(tmp, 'docker-argv.log');
+    const started = join(tmp, 'preview-started');
+    writeFileSync(join(bin, 'sudo'), '#!/bin/sh\nexec "$@"\n', {mode:0o755});
+    const mockDocker = [
+      '#!/bin/sh',
+      'printf "%s|" "$@" >> "$DOCKER_ARGS_LOG"',
+      'printf "\\n" >> "$DOCKER_ARGS_LOG"',
+      'if [ "$1" = container ] && [ "$2" = inspect ]; then',
+      '  [ -f "$DOCKER_PREVIEW_STARTED" ]',
+      '  exit $?',
+      'fi',
+      'if [ "$1" = run ]; then',
+      '  case "$*" in *--name*) touch "$DOCKER_PREVIEW_STARTED" ;; esac',
+      'fi',
+      'if [ "$1" = inspect ] && [ "$2" = --format ]; then',
+      '  echo "exited exit=126 error=operation not permitted"',
+      'fi',
+      'if [ "$1" = logs ]; then',
+      '  echo "Caddy startup failed: operation not permitted"',
+      'fi',
+      'exit 0',
+    ].join('\n') + '\n';
+    writeFileSync(join(bin, 'docker'), mockDocker, {mode:0o755});
+    writeFileSync(join(bin, 'curl'), '#!/bin/sh\ncase "$*" in *127.0.0.1:8099*) exit 7 ;; esac\nexit 0\n', {mode:0o755});
+    writeFileSync(join(bin, 'sleep'), '#!/bin/sh\nexit 0\n', {mode:0o755});
+    const run = spawnSync('bash', ['scripts/torso-cage-canary.sh', 'up'], {
+      encoding: 'utf8',
+      timeout: 10000,
+      env: { ...process.env, HOME: tmp, PATH: bin + ':' + process.env.PATH,
+        DOCKER_ARGS_LOG: log, DOCKER_PREVIEW_STARTED: started },
+    });
+    assert.notEqual(run.status, 0, 'Canary must fail if preview port 8099 never becomes healthy');
+    assert.match(run.stderr, /PREVIEW STARTUP DIAGNOSTICS/);
+    assert.match(run.stderr, /exited exit=126 error=operation not permitted/);
+    assert.match(run.stderr, /Caddy startup failed: operation not permitted/);
+    assert.match(run.stderr, /Active Console unchanged/);
+    const entries = readFileSync(log, 'utf8').trim().split('\n');
+    const reportIndex = entries.findIndex(line => line.startsWith('inspect|--format|'));
+    const logIndex = entries.findIndex(line => line.startsWith('logs|--tail|35|'));
+    const removeIndex = entries.findIndex(line => line.startsWith('rm|-f|'));
+    assert.ok(reportIndex >= 0 && logIndex > reportIndex && removeIndex > logIndex,
+      'State and logs must be collected before preview cleanup');
+    const removed = entries.filter(line => line.startsWith('rm|-f|'));
+    assert.equal(removed.length, 2);
+    assert.ok(removed.every(line => line.includes('rgd-torso-v01-')));
+    assert.ok(!entries.some(line => /compose|volume|image\|rm\|/.test(line)),
+      'Production services, volumes and images must be untouched');
+  } finally {
+    rmSync(tmp, {recursive:true,force:true});
+  }
+});

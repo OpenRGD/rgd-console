@@ -1,5 +1,5 @@
 /** Exact upstream BHL V1 zero-angle joint-frame projection; display-only schematic. */
-import { BHL_V1_URDF_JOINTS, BHL_V1_ACTUATED_IDS, type BhlJointReference } from './bhl-v1-reference';
+import { BHL_V1_URDF_JOINTS, BHL_V1_ACTUATED_IDS, type BhlJointReference } from './bhl-v1-reference.ts';
 
 export type Vec3 = [number, number, number];
 export type Quat = [number, number, number, number]; // XYZW

@@ -112,7 +112,10 @@ test('optional canary script is Bash-valid and never recreates active Compose or
   assert.match(sh,/respond @api_block "Preview API is read-only" 405/);
   assert.match(sh,/--entrypoint caddy "\$CADDY_IMAGE" validate --config \/etc\/caddy\/Caddyfile --adapter caddyfile/);
   assert.match(sh,/reverse_proxy rgd-torso-v01-web:3000/);
-  assert.match(sh,/docker run --rm -d --pull=never/);
+  assert.match(sh,/docker run -d --pull=never --name/);
+  assert.match(sh,/--cap-drop ALL --cap-add NET_BIND_SERVICE --security-opt no-new-privileges/);
+  assert.match(sh,/docker logs --tail 35/);
+  assert.match(sh,/docker inspect --format/);
   assert.match(sh,/--network "\$NETWORK"/);
   assert.match(sh,/--cap-drop ALL --security-opt no-new-privileges/);
   assert.doesNotMatch(sh,/docker compose (?:up|down|build)|docker volume (?:prune|rm)|--privileged|--device|docker\.sock|systemctl|motor\.command/);
@@ -147,6 +150,11 @@ test('canary up passes explicit Caddy executable in real shell argv, with Docker
     assert.match(validate, /\|--entrypoint\|caddy\|caddy:2\.10-alpine\|validate\|--config\|\/etc\/caddy\/Caddyfile\|--adapter\|caddyfile\|$/);
     assert.ok(lines.some(line => line.includes('|rgd-console-torso-preview:v0.1|')),
       'Expected separate candidate web image launch');
+    const gatewayRun = lines.find(line => line.includes('|--name|rgd-torso-v01-gateway|'));
+    assert.ok(gatewayRun, 'Expected temporary preview Caddy gateway');
+    assert.match(gatewayRun,/^run\|-d\|--pull=never\|--name\|rgd-torso-v01-gateway\|/);
+    assert.match(gatewayRun,/\|--cap-drop\|ALL\|--cap-add\|NET_BIND_SERVICE\|--security-opt\|no-new-privileges\|/);
+    assert.match(validate,/\|--cap-drop\|ALL\|--cap-add\|NET_BIND_SERVICE\|--security-opt\|no-new-privileges\|/);
     const caddyfile = readFileSync(join(tmp, 'openrgd', 'preview', 'torso-cage-v01', 'Caddyfile'), 'utf8');
     assert.match(caddyfile, /method GET HEAD/);
     assert.match(caddyfile, /respond @api_block "Preview API is read-only" 405/);

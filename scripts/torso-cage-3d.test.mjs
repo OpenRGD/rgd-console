@@ -99,6 +99,10 @@ test('optional canary script is Bash-valid and never recreates active Compose or
   const sh=src('scripts/torso-cage-canary.sh');
   const parsed=spawnSync('bash',['-n'],{input:sh,encoding:'utf8',timeout:10000});
   assert.equal(parsed.status,0,parsed.stderr);
+  // Bash -n accepts two trailing backslashes, but docker then receives a literal
+  // backslash as IMAGE and fails with `docker: invalid reference format`.
+  assert.equal(sh.includes(String.fromCharCode(92,92,10)),false,
+    'Double backslash before newline breaks docker run image argument');
   assert.match(sh,/rgd-console-torso-preview:v0\.1/);
   assert.match(sh,/--publish "127\.0\.0\.1:/);
   assert.match(sh,/method GET HEAD/);

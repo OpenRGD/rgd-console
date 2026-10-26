@@ -107,6 +107,11 @@ The frontend can be tested against the **real existing Console API + WebSocket**
 
 The script checks the original 8088 health endpoint, the network, both local images and name conflicts before starting. If startup fails, it removes only its two preview containers. It never runs docker compose up/down, replaces the live web, mounts USB or writes any data volume.
 
+**2026-10-26 Caddy process-launch finding:** On the mini-PC, the Caddyfile validation passed but the preview gateway closed/reset port 8099 during startup. The real production gateway has `cap_drop: ALL` **and `cap_add: NET_BIND_SERVICE`**. The original canary used `--cap-drop ALL` without the exception. Official `caddy:2.10-alpine` images assign a file capability to the `caddy` executable; removing it from the process bounding set can prevent `exec`, even though :8080 is not a privileged port. This is a strong diagnosis consistent with the symptoms, but only actual crashed-container logs can establish the precise Ubuntu failure.
+
+The canary gateway now explicitly uses `--cap-drop ALL --cap-add NET_BIND_SERVICE --security-opt no-new-privileges`, matching the production service. Its Caddyfile validation subprocess runs under the same capability restrictions. On failed startup it captures **only** temporary preview container state/exit code and last 35 log lines **before** deleting them; the service containers are not `--rm` so logs survive long enough to be inspected. No new persistent volumes or other service restarts are involved. These launch-argument and failure-diagnostic paths are covered by offline mock-Docker tests. If the canary still fails, inspect the printed exit reason and log lines before suggesting another modification.
+
+
 Get the latest reviewed preview script into the EXISTING detached worktree:
 
     cd ~/openrgd/repos/openrgd-console

@@ -482,7 +482,8 @@ export function VisualEffectsStudio() {
       </div>
 
       <div className="mt-8"><ExpressiveEyesStudio key={profile.robot_id}
-        targetRobotId={profile.robot_id} stageInScene={stageExpressionInScene} currentSceneLabel={activeScene}/></div>
+        targetRobotId={profile.robot_id} stageInScene={stageExpressionInScene}
+        selectedSceneExpression={activeEyeExpression} currentSceneLabel={activeScene}/></div>
       <p role="status" className="mt-6 text-xs text-slate-400">{message}</p>
       <div className="mt-8 rounded-xl border border-line bg-[#0e1823] p-5 text-xs leading-6 text-muted">
         <p className="mb-1 flex items-center gap-2 font-semibold text-mint"><ShieldCheck size={15}/> Confine architetturale</p>

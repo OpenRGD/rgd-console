@@ -13,7 +13,7 @@ test('3D cage dimensions match operator-reported measurements and IMU datum', ()
   // used by the existing Live display preset regression suite.
   const child = [
     "import assert from 'node:assert/strict';",
-    "const { PAKY01_CAGE:g, isCurrentPakyImu, isPakyImuSource, imuSourceKey, relativeCagePose } = await import(process.argv[1]);",
+    "const { PAKY01_CAGE:g, isCurrentPakyImu, isPakyImuSource, imuSourceKey, relativeCagePose, relativeYawPreview } = await import(process.argv[1]);",
     "assert.equal(g.coreWidthM, 0.15);",
     "assert.equal(g.totalHeightM, 0.24);",
     "assert.equal(g.totalDepthM, 0.14);",
@@ -35,14 +35,25 @@ test('3D cage dimensions match operator-reported measurements and IMU datum', ()
     "assert.equal(isPakyImuSource({...a,decision_eligible:true},'paky-01'),false);",
     "assert.equal(isPakyImuSource({...a,reference_frame:'torso'},'paky-01'),false);",
     "assert.equal(isPakyImuSource({...a,session_id:'not-a-real-session'},'paky-01'),false);",
-    "const zero={sourceKey:imuSourceKey(a),rollDeg:-4.8,pitchDeg:-7.3};",
+    "const zero={sourceKey:imuSourceKey(a),rollDeg:-4.8,pitchDeg:-7.3,yawDeg:-148};",
     "const b={...a,orientation_euler_deg:[2.2,-2.3,95]};",
     "const pose=relativeCagePose(b,zero);",
     "assert.ok(Math.abs(pose.rollDeg-7)<1e-9);",
     "assert.ok(Math.abs(pose.pitchDeg-5)<1e-9);",
-    "assert.ok(pose.rotationZRad<0);",
+    "assert.ok(pose.rotationZRad>0);", // Inverted from old preview after operator's right/left physical feedback.
     "assert.ok(pose.rotationXRad>0);",
     "assert.ok(!Object.hasOwn(pose,'yawDeg'));",
+    "assert.ok(!Object.hasOwn(pose,'rotationYRad'));",
+    "const relativeYaw=relativeYawPreview({...b,orientation_euler_deg:[2.2,-2.3,-142.5]},zero);",
+    "assert.ok(Math.abs(relativeYaw.yawRelativeDeg-5.5)<1e-9);",
+    "assert.ok(relativeYaw.rotationYRad>0);",
+    "assert.equal(relativeYaw.limited,false);",
+    "const wrappedYaw=relativeYawPreview({...b,orientation_euler_deg:[2.2,-2.3,-179]}, {...zero,yawDeg:179});",
+    "assert.ok(Math.abs(wrappedYaw.yawRelativeDeg-2)<1e-9);",
+    "const clippedYaw=relativeYawPreview(b,zero);",
+    "assert.equal(clippedYaw.yawRelativeDeg,-90);",
+    "assert.equal(clippedYaw.limited,true);",
+    "assert.throws(()=>relativeYawPreview({...b,session_id:'b'.repeat(32)},zero));",
     "assert.equal(relativeCagePose({...b,orientation_euler_deg:[60,-2.3,-150]},zero).limited,true);",
     "assert.throws(()=>relativeCagePose({...b,session_id:'b'.repeat(32)},zero));",
     "console.log('verified candidate visual-only pose and freshness');",
@@ -72,7 +83,14 @@ test('3D panel is isolated from HAL/runtime, motor writes and unverified robot g
   assert.match(geom,/heading_calibrated !== false/);
   assert.match(geom,/source_kind !== 'physical'/);
   assert.match(geom,/rotationXRad: pitch \* radians/);
-  assert.match(geom,/rotationZRad: -roll \* radians/);
+  assert.match(geom,/rotationZRad: roll \* radians/);
+  assert.match(geom,/CAGE_PREVIEW_YAW_LIMIT_DEG = 90/);
+  assert.match(geom,/relativeYawPreview/);
+  assert.match(scene,/useState\(false\)/);
+  assert.match(scene,/yawPose\?\.rotationYRad \?\? 0/);
+  assert.match(scene,/yawPreviewEnabled \? 'Disattiva yaw sperimentale'/);
+  assert.match(scene,/setYawPreviewEnabled\(false\)/);
+  assert.match(scene,/YAW Δ visivo\*/);
   assert.match(live,/type LiveView = 'overview' \| 'cage' \| 'signals' \| 'activity'/);
   assert.match(live,/setView\('cage'\)/);
   assert.match(live,/dynamic\(\(\) => import\('@\/components\/torso-cage-preview'\)/);

@@ -92,8 +92,8 @@ export function bhlReferenceNeutralSkeleton(): BhlReferenceSkeleton {
     const pos=joints.get(joint.id);
     if(!pos)throw new Error('Missing joint pose '+joint.id);
     const parentJoint=parentJointByChild.get(joint.parent);
-    const start=parentJoint ? joints.get(parentJoint.id) :
-      [0,0,URDF_BASE_INERTIAL_Z_M] satisfies Vec3;
+    const start: Vec3 | undefined = parentJoint
+      ? joints.get(parentJoint.id) : [0,0,URDF_BASE_INERTIAL_Z_M];
     if(!start)throw new Error('Unresolved parent pivot for '+joint.id);
     bones.push({
       jointId:joint.id,parentLink:joint.parent,childLink:joint.child,

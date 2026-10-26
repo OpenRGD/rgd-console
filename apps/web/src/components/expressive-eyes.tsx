@@ -173,10 +173,11 @@ function RangeControl({ label, value, min, max, step, onChange }: {
   </label>;
 }
 
-export function ExpressiveEyesStudio({ stageInScene, currentSceneLabel, targetRobotId }: {
+export function ExpressiveEyesStudio({ stageInScene, currentSceneLabel, targetRobotId, selectedSceneExpression }: {
   stageInScene?: (expression: EyeExpression) => void;
   currentSceneLabel?: string;
   targetRobotId: string;
+  selectedSceneExpression?: EyeExpression;
 }) {
   const [current, setCurrent] = useState<EyeExpression>(DEMO_EXPRESSION);
   const [proposalRobotId, setProposalRobotId] = useState<string | null>(DEMO_PROPOSAL.robot_id);
@@ -243,6 +244,14 @@ export function ExpressiveEyesStudio({ stageInScene, currentSceneLabel, targetRo
       setMessage('Proposta rifiutata: ' + (err instanceof Error ? err.message : 'JSON non valido'));
     }
   }
+  function loadExpressionFromScene() {
+    if (!selectedSceneExpression || !validExpression(selectedSceneExpression)) return;
+    if (!window.confirm('Caricare la ricetta della scena corrente nell’editor? Eventuali modifiche non salvate in questa anteprima saranno perse.')) return;
+    setCurrent(selectedSceneExpression);
+    setProposalRobotId(selectedSceneExpression.origin === 'cognitive_proposal' ? targetRobotId : null);
+    setPreviewSource('Catalogo scene locale · ' + targetRobotId);
+    setMessage('Ricetta caricata nell’editor; il profilo della scena non cambia finché non premi Associa alla scena.');
+  }
   function createOperatorExpression() {
     setCurrent(v => ({ ...v, origin: 'operator', expression_id: 'nuova_espressione', label: 'Nuova espressione' }));
     setProposalRobotId(null);
@@ -299,6 +308,7 @@ export function ExpressiveEyesStudio({ stageInScene, currentSceneLabel, targetRo
           </div>
           <div className="flex gap-2">
             <button onClick={createOperatorExpression} type="button" className="flex items-center gap-1.5 rounded-lg border border-mint/30 bg-mint/10 px-3 py-2 text-xs text-mint"><Plus size={14}/> Nuova</button>
+            {selectedSceneExpression && <button onClick={loadExpressionFromScene} type="button" className="rounded-lg border border-line px-3 py-2 text-xs text-slate-300">Carica dalla scena</button>}
             <button onClick={reset} type="button" className="flex items-center gap-1.5 rounded-lg border border-line px-3 py-2 text-xs"><RotateCcw size={14}/> Reset</button>
           </div>
         </div>

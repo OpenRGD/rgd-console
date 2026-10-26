@@ -57,11 +57,16 @@ case "$ACTION" in
     cat >"$CADDYFILE" <<'EOF'
 :8080 {
   encode zstd gzip
-  @api path /api/* /healthz
-  handle @api {
-    reverse_proxy api:8080
+  # Separate, local preview: forward ONLY read-side requests to the real API.
+  # WS upgrade is an HTTP GET and still passes through.
+  @api_read {
+    path /api/* /healthz
+    method GET HEAD
   }
-  handle {
+  @api_block path /api/*
+  route {
+    reverse_proxy @api_read api:8080
+    respond @api_block "Preview API is read-only" 405
     reverse_proxy rgd-torso-v01-web:3000
   }
 }
@@ -76,6 +81,11 @@ EOF
       fi
     }
     trap cleanup_on_fail EXIT
+
+    # Validate config with the existing local image before creating any preview service.
+    sudo docker run --rm --pull=never --network none \\
+      --mount "type=bind,src=${CADDYFILE},dst=/etc/caddy/Caddyfile,readonly" \\
+      "$CADDY_IMAGE" validate --config /etc/caddy/Caddyfile --adapter caddyfile >/dev/null
 
     sudo docker run --rm -d --pull=never --name "$WEB" \
       --network "$NETWORK" \

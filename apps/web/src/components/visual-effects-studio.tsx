@@ -37,6 +37,8 @@ type LegacyProfile = Omit<StudioProfile, 'schema_version' | 'expressions'> & {
 
 const STORAGE_KEY = 'openrgd.visual-studio.preview.v0.2';
 const OLD_STORAGE_KEY = 'openrgd.visual-studio.preview.v0.1';
+const storageForRobot = (id: 'paky-01' | 'paky-02') => STORAGE_KEY + '.' + id;
+type PreviewRobot = 'paky-01' | 'paky-02';
 const EXPRESSIVE_ZONE: Zone = {
   id: 'expressive-eyes', label: 'Occhi · due mini display (futuri)',
   adapter_id: null, capabilities: ['eye_expression'], binding_status: 'planned',
@@ -70,15 +72,33 @@ const INITIAL: StudioProfile = {
     welcome: [
       { zone_id: 'face-ring', effect: 'solid', color: '#40FAD2', brightness: 40 },
       { zone_id: 'room-lights', effect: 'pulse', color: '#40FAD2', brightness: 30 },
-      { zone_id: 'expressive-eyes', effect: 'eye_expression', expression_id: DEMO_EXPRESSION.expression_id },
     ],
   },
-  expressions: { [DEMO_EXPRESSION.expression_id]: DEMO_EXPRESSION },
+  expressions: {},
   mappings: EVENTS,
   fallback_scene: 'idle',
   non_actuating: true,
   preview_only: true,
 };
+
+const PAKY02: StudioProfile = {
+  ...INITIAL,
+  robot_id: 'paky-02',
+  zones: INITIAL.zones.map(zone => ({
+    ...zone,
+    binding_status: 'planned',
+    adapter_id: null,
+  })),
+  scenes: {
+    ...INITIAL.scenes,
+    welcome: [
+      ...INITIAL.scenes.welcome,
+      { zone_id: EXPRESSIVE_ZONE.id, effect: 'eye_expression', expression_id: DEMO_EXPRESSION.expression_id },
+    ],
+  },
+  expressions: { [DEMO_EXPRESSION.expression_id]: DEMO_EXPRESSION },
+};
+const defaultsForRobot = (id: PreviewRobot): StudioProfile => id === 'paky-02' ? PAKY02 : INITIAL;
 
 function isLightTarget(target: Target): target is LightTarget {
   return target.effect !== 'eye_expression';
@@ -89,7 +109,7 @@ function sceneColor(target: LightTarget | undefined): string {
 function validDraftBase(value: unknown): value is Record<string, unknown> {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
   const c = value as Record<string, unknown>;
-  return c.robot_id === INITIAL.robot_id && c.preview_only === true
+  return (c.robot_id === 'paky-01' || c.robot_id === 'paky-02') && c.preview_only === true
     && c.non_actuating === true && typeof c.revision === 'number'
     && Number.isSafeInteger(c.revision) && c.revision >= 1
     && Array.isArray(c.zones) && Array.isArray(c.mappings)
@@ -141,15 +161,15 @@ export function VisualEffectsStudio() {
 
   useEffect(() => {
     try {
-      const saved = localStorage.getItem(STORAGE_KEY);
+      const saved = localStorage.getItem(storageForRobot('paky-01')) || localStorage.getItem(STORAGE_KEY);
       if (saved) {
         const parsed: unknown = JSON.parse(saved);
-        if (isDraft(parsed)) setProfile(parsed);
+        if (isDraft(parsed) && parsed.robot_id === 'paky-01') setProfile(parsed);
       } else {
         const legacy = localStorage.getItem(OLD_STORAGE_KEY);
         if (legacy) {
           const parsed: unknown = JSON.parse(legacy);
-          if (isLegacyDraft(parsed)) setProfile(upgradeLegacyDraft(parsed));
+          if (isLegacyDraft(parsed) && parsed.robot_id === 'paky-01') setProfile(upgradeLegacyDraft(parsed));
         }
       }
     } catch {
@@ -160,7 +180,7 @@ export function VisualEffectsStudio() {
 
   useEffect(() => {
     if (!loaded) return;
-    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(profile)); } catch {
+    try { localStorage.setItem(storageForRobot(profile.robot_id as PreviewRobot), JSON.stringify(profile)); } catch {
       // Browser storage is optional. Profile can still be exported.
     }
   }, [loaded, profile]);
@@ -279,12 +299,31 @@ export function VisualEffectsStudio() {
 
   function reset() {
     if (!window.confirm('Ripristinare soltanto la bozza del browser? Nessun dispositivo sarà modificato.')) return;
-    localStorage.removeItem(STORAGE_KEY);
-    localStorage.removeItem(OLD_STORAGE_KEY);
-    setProfile(INITIAL);
+    localStorage.removeItem(storageForRobot(profile.robot_id as PreviewRobot));
+    if (profile.robot_id === 'paky-01') {
+      localStorage.removeItem(STORAGE_KEY);
+      localStorage.removeItem(OLD_STORAGE_KEY);
+    }
+    setProfile(defaultsForRobot(profile.robot_id as PreviewRobot));
     setRuleIndex(2);
     setOverrideScene(null);
     setMessage('Bozza locale ripristinata.');
+  }
+
+  function selectPreviewRobot(robotId: PreviewRobot) {
+    if (profile.robot_id === robotId) return;
+    let next = defaultsForRobot(robotId);
+    try {
+      const saved = localStorage.getItem(storageForRobot(robotId));
+      if (saved) {
+        const parsed: unknown = JSON.parse(saved);
+        if (isDraft(parsed) && parsed.robot_id === robotId) next = parsed;
+      }
+    } catch { /* Malformed browser drafts cannot affect the robot. */ }
+    setProfile(next);
+    setRuleIndex(2);
+    setOverrideScene(null);
+    setMessage('Profilo virtuale ' + robotId + ' selezionato. I cataloghi restano separati e nessuna configurazione del robot è stata modificata.');
   }
 
   function exportDraft() {
@@ -331,7 +370,12 @@ export function VisualEffectsStudio() {
       </div>
 
       <div className="mb-7 grid gap-3 sm:grid-cols-3">
-        <div className="panel p-4"><div className="eyebrow">ROBOT / PROFILO</div><div className="mt-2 font-semibold">Paky-01 <span className="ml-2 text-xs font-normal text-muted">fixture di esempio</span></div></div>
+        <div className="panel p-4"><label className="eyebrow" htmlFor="visual-preview-robot">ROBOT / PROFILO</label>
+          <select id="visual-preview-robot" className="mt-2 w-full bg-transparent text-sm font-semibold text-white"
+            value={profile.robot_id} onChange={event => selectPreviewRobot(event.target.value as PreviewRobot)}>
+            <option className="bg-[#101a26]" value="paky-01">Paky-01 · LED reale, preview occhi</option>
+            <option className="bg-[#101a26]" value="paky-02">Paky-02 · tutto simulato</option>
+          </select></div>
         <div className="panel p-4"><div className="eyebrow">REGOLE D'EVENTO</div><div className="mt-2 text-xl font-semibold">{profile.mappings.length}</div></div>
         <div className="panel p-4"><div className="eyebrow">ZONE &amp; REPERTORIO</div><div className="mt-2 text-xl font-semibold">{profile.zones.length} <span className="text-xs font-normal text-muted">zone · {Object.keys(profile.expressions).length} espressioni in bozza</span></div></div>
       </div>
@@ -411,7 +455,7 @@ export function VisualEffectsStudio() {
           <div className="relative grid min-h-[345px] place-items-center overflow-hidden bg-[radial-gradient(circle_at_center,#152537,#0a121b_68%)] p-10">
             <div className="ve-ring-shell">
               <div className={'ve-ring ve-' + (face?.effect ?? 'solid')} style={{ ...ringStyle, boxShadow: shadow }} aria-label={'Anello virtuale ' + activeScene} />
-              <div className="ve-ring-center"><CircleDot size={26} className="mx-auto text-slate-500" /><div className="mt-2 text-center text-xs font-semibold text-slate-200">Paky-01</div><div className="mt-1 text-center font-mono text-[10px] text-muted">VIRTUAL OUTPUT</div></div>
+              <div className="ve-ring-center"><CircleDot size={26} className="mx-auto text-slate-500" /><div className="mt-2 text-center text-xs font-semibold text-slate-200">{profile.robot_id}</div><div className="mt-1 text-center font-mono text-[10px] text-muted">VIRTUAL OUTPUT</div></div>
             </div>
           </div>
           {activeEyeExpression
@@ -437,7 +481,8 @@ export function VisualEffectsStudio() {
         </section>
       </div>
 
-      <div className="mt-8"><ExpressiveEyesStudio stageInScene={stageExpressionInScene} currentSceneLabel={activeScene}/></div>
+      <div className="mt-8"><ExpressiveEyesStudio key={profile.robot_id}
+        targetRobotId={profile.robot_id} stageInScene={stageExpressionInScene} currentSceneLabel={activeScene}/></div>
       <p role="status" className="mt-6 text-xs text-slate-400">{message}</p>
       <div className="mt-8 rounded-xl border border-line bg-[#0e1823] p-5 text-xs leading-6 text-muted">
         <p className="mb-1 flex items-center gap-2 font-semibold text-mint"><ShieldCheck size={15}/> Confine architetturale</p>

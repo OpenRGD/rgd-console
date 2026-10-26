@@ -33,13 +33,18 @@ Freshness requires the selected robot/source IDs and uncalibrated trust flags, c
 
 ## Display-only transform and safety
 
-On the first valid sample of each publisher session, the frontend sets a session-local zero baseline. The operator may reset this baseline using the on-screen zero button; this only changes local React state and never changes sensor/robot calibration or writes to the network.
+On the first valid sample of each publisher session, the frontend sets a session-local zero baseline for roll, pitch and the **uncalibrated** vendor yaw. The operator may reset this baseline using the on-screen zero button; this only changes local React state and never changes sensor/robot calibration or writes to the network.
 
 Candidate experimental directions from four separate passive tests:
 - Robot right tilt -> IMU X gyro/roll positive; left -> negative.
 - Robot forward tilt -> IMU Y gyro/pitch positive; backward -> negative.
+- **Vertical Z rotation sign and yaw reliability have NOT yet been physically verified.**
 
-Using an explicitly schematic viewer frame X=right,Y=up,Z=front, sensor roll delta makes the cage lean to the right; sensor pitch delta leans forward. Sensor yaw is shown numerically as YAW* NON CALIBRATO but NEVER applied to the scene. Visual movement is clipped to +/-35 degrees (warning shown), and no output enters Somatic Runtime or motor safety authority.
+**Physical browser feedback (operator, 2026-10-26):** The first release visually reversed left/right tilt, while forward/back tilt was **correct** and live response appeared immediate. The corrected display mapping reverses **only the Three.js scene roll sign** (`rotationZRad = +relativeRollRadians` versus previous negative), leaving physical source data, gyro X sign, IMU contracts and scene pitch unchanged. This is a viewport/operator-convention correction, not a physical extrinsic calibration.
+
+**Vertical rotation is opt-in diagnostic only:** On initial load, scene yaw stays exactly 0. The operator may press **Prova rotazione yaw relativa*** to temporarily map the shortest wrapped **vendor-fusion Euler yaw difference** since local zero onto schematic scene Y rotation. The screen explicitly labels the feature experimental and the sign of physical Z unverified. It is **not** true absolute yaw, magnetic north, a calibrated heading, gyroscope integration, a base/twist angle, or a canonical robot/body quaternion. Vendor-fusion yaw can drift or jump due magnetic disturbances; multi-turn rotations >180 degrees cannot be disambiguated by this shortest wrapped difference. Visual yaw is capped at +/-90 degrees with an explicit warning. The operator may switch the feature off; it resets to OFF when selecting a different robot or when the publisher session changes. No backend, IMU configuration, motor control or calibration revision is changed.
+
+Roll/pitch visual movement remains clipped to +/-35 degrees per axis; yaw toggle never authorizes movement or permits a physical pose inference. On stale/disconnected observations the last received visual pose stays frozen and current metrics are marked unavailable.
 
 Robot Completo is intentionally disabled until an actual model-linked, calibrated and independently verified Paky-01 RGD/URDF profile exists.
 
@@ -98,11 +103,11 @@ This is an operator procedure, NOT evidence these commands have yet been run. Ne
 
 ## Isolated local browser canary (BEFORE PR merge or production web replacement)
 
-The operator already built the separate Docker image tagged rgd-console-torso-preview:v0.1 from revision d60316a and ran 9/9 focused static tests on Ubuntu. No active service has been changed.
+The operator initially built and validated the **v0.1** image from revision d60316a and ran 9/9 focused static tests on Ubuntu. The later right/left sign correction and optional yaw visualization require a **new separately tagged v0.2 image**. The active Console on port 8088 must remain unchanged.
 
 The frontend can be tested against the **real existing Console API + WebSocket** without replacing production web on 8088. The documented canary script launches TWO non-persistent containers connected to the existing *openrgd-console_default* Docker network:
 
-- candidate Next.js web image: rgd-console-torso-preview:v0.1
+- candidate Next.js web image: rgd-console-torso-preview:v0.2
 - Caddy gateway caddy:2.10-alpine, bound ONLY to 127.0.0.1:8099; /api/* and /healthz route to existing api:8080, all other paths to the candidate web.
 
 The script checks the original 8088 health endpoint, the network, both local images and name conflicts before starting. If startup fails, it removes only its two preview containers. It never runs docker compose up/down, replaces the live web, mounts USB or writes any data volume.
@@ -111,6 +116,11 @@ The script checks the original 8088 health endpoint, the network, both local ima
 
 The canary gateway now explicitly uses `--cap-drop ALL --cap-add NET_BIND_SERVICE --security-opt no-new-privileges`, matching the production service. Its Caddyfile validation subprocess runs under the same capability restrictions. On failed startup it captures **only** temporary preview container state/exit code and last 35 log lines **before** deleting them; the service containers are not `--rm` so logs survive long enough to be inspected. No new persistent volumes or other service restarts are involved. These launch-argument and failure-diagnostic paths are covered by offline mock-Docker tests. If the canary still fails, inspect the printed exit reason and log lines before suggesting another modification.
 
+
+For any new frontend code, explicitly **stop only the old preview** before rebuilding the new image tag. The main web on port 8088 is not changed:
+
+    cd ~/openrgd/repos/rgd-console-torso-review
+    bash scripts/torso-cage-canary.sh down
 
 Get the latest reviewed preview script into the EXISTING detached worktree:
 
@@ -122,6 +132,9 @@ Get the latest reviewed preview script into the EXISTING detached worktree:
 Then:
 
     cd ~/openrgd/repos/rgd-console-torso-review
+    node --test scripts/torso-cage-3d.test.mjs
+    sudo docker build --pull=false -f deploy/Dockerfile.web \
+      -t rgd-console-torso-preview:v0.2 .
     bash scripts/torso-cage-canary.sh up
 
 Open **http://127.0.0.1:8099/live** in Firefox running locally on the mini-PC. The ordinary Console remains **http://127.0.0.1:8088/live**. To inspect or remove the preview without affecting production:
@@ -136,10 +149,10 @@ Only after Firefox/WebGL, selected robot, relative tilt signs, zero button and f
 ## Acceptance checklist
 
 1. Select Paky-01 in /live and open CORPO 3D; show a proportional cage, 25cm top rail and 11cm amber horizontal plane.
-2. Read real IMU from the existing publisher only; no second serial access. Live tilt changes relative roll/pitch according to operator motion, NOT yaw rotation.
+2. Read real IMU from the existing publisher only; no second serial access. Live **right/left roll** now follows the operator-corrected viewport direction while **forward/back pitch** remains unchanged. Default scene yaw remains zero.
 3. Stop publisher or WS: within <=3 seconds the widget becomes STALE and freezes the model without synthetic values.
 4. Change to a different/simulated robot: Paky-01 cage is not shown as that robot.
-5. Button Imposta zero grafico resets only local visual offset. No sensor calibration or motor permissions change.
+5. Button Imposta zero grafico resets only local visual offsets. Optionally toggle **Prova rotazione yaw relativa*** and gently rotate the securely suspended cage if the fixture/cables allow; verify that only the diagnostic scene Y changes, no heading is labeled calibrated, and the toggle defaults OFF. No sensor calibration or motor permissions change.
 6. Existing Overview, Telemetria, Eventi, Calibration, Boot and HAL remain operational.
 
 ## Known CI baseline

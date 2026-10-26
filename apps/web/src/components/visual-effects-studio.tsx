@@ -322,7 +322,7 @@ export function VisualEffectsStudio() {
       <div className="mb-6 flex flex-wrap items-start justify-between gap-4">
         <div>
           <p className="eyebrow">EVENTI → REGOLE → SCENE → OUTPUT</p>
-          <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-400">Configura il matching tra eventi dei moduli robotici e risposte luminose indipendenti dall’hardware. Questo laboratorio modifica solo una bozza nel browser: non rileva né controlla l’anello reale.</p>
+          <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-400">Associa eventi a scene che combinano LED, luci ambientali e occhi espressivi. Le nuove emozioni sono ricette nel catalogo JSON della bozza: non servono modifiche al software del renderer. Nessun dispositivo reale viene controllato.</p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <button type="button" onClick={reset} className="flex items-center gap-2 rounded-lg border border-line px-3 py-2.5 text-xs text-slate-300 hover:bg-white/5"><RotateCcw size={15} /> Ripristina</button>
@@ -333,7 +333,7 @@ export function VisualEffectsStudio() {
       <div className="mb-7 grid gap-3 sm:grid-cols-3">
         <div className="panel p-4"><div className="eyebrow">ROBOT / PROFILO</div><div className="mt-2 font-semibold">Paky-01 <span className="ml-2 text-xs font-normal text-muted">fixture di esempio</span></div></div>
         <div className="panel p-4"><div className="eyebrow">REGOLE D'EVENTO</div><div className="mt-2 text-xl font-semibold">{profile.mappings.length}</div></div>
-        <div className="panel p-4"><div className="eyebrow">ZONE LUMINOSE</div><div className="mt-2 text-xl font-semibold">{profile.zones.length} <span className="text-xs font-normal text-muted">incluse zone future</span></div></div>
+        <div className="panel p-4"><div className="eyebrow">ZONE &amp; REPERTORIO</div><div className="mt-2 text-xl font-semibold">{profile.zones.length} <span className="text-xs font-normal text-muted">zone · {Object.keys(profile.expressions).length} espressioni in bozza</span></div></div>
       </div>
 
       <div className="grid items-start gap-5 xl:grid-cols-[minmax(270px,.95fr)_minmax(360px,1.1fr)_minmax(310px,.95fr)]">
@@ -351,7 +351,7 @@ export function VisualEffectsStudio() {
         </section>
 
         <section className="panel overflow-hidden">
-          <div className="flex items-center justify-between border-b border-line p-5"><div><h2 className="text-sm font-semibold">2 · Scene &amp; comportamenti</h2><p className="mt-1 text-xs text-muted">Priorità, colori e intensità</p></div><SlidersHorizontal className="text-mint" size={19}/></div>
+          <div className="flex items-center justify-between border-b border-line p-5"><div><h2 className="text-sm font-semibold">2 · Scene &amp; comportamenti</h2><p className="mt-1 text-xs text-muted">LED, display espressivi e catalogo di ricette</p></div><SlidersHorizontal className="text-mint" size={19}/></div>
           <div className="space-y-5 p-5">
             <label className="block text-xs text-slate-400">Scena assegnata all’evento
               <select className="mt-2 w-full rounded-xl border border-line bg-[#111e2b] p-3 text-sm text-white outline-none focus:border-mint" value={selectedRule?.scene ?? profile.fallback_scene} onChange={e => setRuleScene(e.target.value)}>
@@ -414,15 +414,30 @@ export function VisualEffectsStudio() {
               <div className="ve-ring-center"><CircleDot size={26} className="mx-auto text-slate-500" /><div className="mt-2 text-center text-xs font-semibold text-slate-200">Paky-01</div><div className="mt-1 text-center font-mono text-[10px] text-muted">VIRTUAL OUTPUT</div></div>
             </div>
           </div>
+          {activeEyeExpression
+            ? <div className="border-t border-line px-4 py-5">
+                <div className="mb-3 text-[10px] font-semibold uppercase tracking-widest text-mint">Expressive Displays · simulazione</div>
+                <div className="ve-expressive-pair">
+                  <EyeScreen eye={activeEyeExpression.eyes.left} side="left" expression={activeEyeExpression} blink={false}/>
+                  <EyeScreen eye={activeEyeExpression.eyes.right} side="right" expression={activeEyeExpression} blink={false}/>
+                </div>
+                <p className="mt-3 text-xs font-semibold text-slate-200">{activeEyeExpression.label}</p>
+                <p className="mt-1 text-[11px] text-muted">Catalogo: {activeEyeExpression.expression_id} · due display virtuali, nessun dispositivo attivo.</p>
+              </div>
+            : <div className="border-t border-line px-5 py-4 text-[11px] text-muted">Nessuna espressione per gli occhi è associata a questa scena.</div>}
           <div className="space-y-4 p-5">
             <div><div className="eyebrow">SCENA SIMULATA</div><div className="mt-2 text-lg font-semibold capitalize">{activeScene}</div><p className="mt-1 text-xs text-muted">{targets.length} zona/e nella scena · {activeEffects.join(', ') || 'nessuna'}</p></div>
             <div className="rounded-xl border border-amber-400/20 bg-amber-400/5 p-3 text-xs leading-5 text-amber-200">I cambiamenti qui sono soltanto grafici. Non implicano LED connessi, comandi inviati o luce fisicamente osservata.</div>
-            <div className="flex flex-wrap gap-2">{targets.map(target => <div key={target.zone_id} className="flex items-center gap-2 rounded-lg border border-line px-2.5 py-1.5 text-[11px]"><span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: target.color }} />{target.zone_id} · {target.effect}</div>)}</div>
+            <div className="flex flex-wrap gap-2">{targets.map(target => <div key={target.zone_id} className="flex items-center gap-2 rounded-lg border border-line px-2.5 py-1.5 text-[11px]">
+              <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: target.effect === 'eye_expression'
+                ? (profile.expressions[target.expression_id]?.palette.accent ?? '#526070') : target.color }} />
+              {target.zone_id} · {target.effect === 'eye_expression' ? target.expression_id : target.effect}
+            </div>)}</div>
           </div>
         </section>
       </div>
 
-      <div className="mt-8"><ExpressiveEyesStudio /></div>
+      <div className="mt-8"><ExpressiveEyesStudio stageInScene={stageExpressionInScene} currentSceneLabel={activeScene}/></div>
       <p role="status" className="mt-6 text-xs text-slate-400">{message}</p>
       <div className="mt-8 rounded-xl border border-line bg-[#0e1823] p-5 text-xs leading-6 text-muted">
         <p className="mb-1 flex items-center gap-2 font-semibold text-mint"><ShieldCheck size={15}/> Confine architetturale</p>

@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useId, useState } from 'react';
 import type { CSSProperties } from 'react';
 import { BrainCircuit, CheckCircle2, Download, Eye, Plus, RotateCcw, ShieldAlert, Sparkles } from 'lucide-react';
 import './expressive-eyes.css';
@@ -140,7 +140,7 @@ export function EyeScreen({ eye, side, expression, blink }: {
   const pupilR = 16 * eye.pupil_scale;
   const x = 105 + eye.gaze_x * 30;
   const y = cy + eye.gaze_y * 24;
-  const clipId = 've-eye-clip-' + side;
+  const clipId = 've-eye-clip-' + side + '-' + useId().replace(/:/g, '_');
   const moving = expression.animation.mode === 'scan' ? 've-iris-scan' : expression.animation.mode === 'breathe' ? 've-iris-breathe' : '';
   return <div className="ve-expressive-screen">
     <div className="ve-expressive-screen-tag">DISPLAY {side === 'left' ? 'SINISTRO' : 'DESTRO'} · SIMULATO</div>

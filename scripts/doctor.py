@@ -3,7 +3,6 @@
 import argparse
 import json
 from urllib.request import urlopen
-from urllib.error import URLError, HTTPError
 import time
 
 
@@ -27,7 +26,10 @@ def main():
             fetch_json('/api/v1/boot/health')
             fetch_json('/api/v1/modules/agent-health')
             break
-        except (URLError, HTTPError, RuntimeError, ValueError):
+        except (OSError, RuntimeError, ValueError):
+            # Docker can reset an early HTTP connection while the gateway is
+            # starting. URLError/HTTPError subclass OSError; retry these and
+            # raw ConnectionResetError, but still fail after 15 attempts.
             if attempt == 14:
                 print('FAIL Console startup readiness: API/agents did not become available')
                 return 1
@@ -72,7 +74,7 @@ def main():
         print(f"  Registry: {len(module_catalog['catalog'])} module releases | agent: OK | no auto-installs")
         print(f"  Boot Manager: {boot_status['status']} | physical execution: BLOCKED")
         return 0
-    except (URLError, RuntimeError, AssertionError, ValueError, KeyError) as exc:
+    except (OSError, RuntimeError, AssertionError, ValueError, KeyError) as exc:
         print(f'FAIL Console preflight smoke: {exc}')
         print('Inspect: docker compose ps && docker compose logs --tail=80 api web gateway boot-manager')
         return 1

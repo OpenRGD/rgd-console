@@ -10,6 +10,7 @@ import {
 import './visual-effects-studio.css';
 import { DEMO_EXPRESSION, EyeScreen, ExpressiveEyesStudio, validExpression } from './expressive-eyes';
 import type { EyeExpression } from './expressive-eyes';
+import { ExpressionCatalogManager } from './expression-catalog-manager';
 
 type LightEffect = 'solid' | 'pulse' | 'chase' | 'wave';
 type Effect = LightEffect | 'eye_expression';
@@ -362,6 +363,9 @@ export function VisualEffectsStudio() {
         <div>
           <p className="eyebrow">EVENTI → REGOLE → SCENE → OUTPUT</p>
           <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-400">Associa eventi a scene che combinano LED, luci ambientali e occhi espressivi. Le nuove emozioni sono ricette nel catalogo JSON della bozza: non servono modifiche al software del renderer. Nessun dispositivo reale viene controllato.</p>
+          <a href="#expression-catalog" className="mt-3 inline-flex items-center gap-2 text-xs font-semibold text-mint hover:underline">
+            Apri Expression Catalog Manager (snapshot locali) →
+          </a>
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <button type="button" onClick={reset} className="flex items-center gap-2 rounded-lg border border-line px-3 py-2.5 text-xs text-slate-300 hover:bg-white/5"><RotateCcw size={15} /> Ripristina</button>
@@ -484,6 +488,7 @@ export function VisualEffectsStudio() {
       <div className="mt-8"><ExpressiveEyesStudio key={profile.robot_id}
         targetRobotId={profile.robot_id} stageInScene={stageExpressionInScene}
         selectedSceneExpression={activeEyeExpression} currentSceneLabel={activeScene}/></div>
+      <div className="mt-8"><ExpressionCatalogManager key={profile.robot_id} robotId={profile.robot_id}/></div>
       <p role="status" className="mt-6 text-xs text-slate-400">{message}</p>
       <div className="mt-8 rounded-xl border border-line bg-[#0e1823] p-5 text-xs leading-6 text-muted">
         <p className="mb-1 flex items-center gap-2 font-semibold text-mint"><ShieldCheck size={15}/> Confine architetturale</p>

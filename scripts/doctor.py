@@ -18,13 +18,19 @@ def main():
                 raise RuntimeError(f'{route}: HTTP {response.status}')
             return json.load(response)
 
-    # Docker `up -d` does not wait for all upstream HTTP handlers; retry
-    # short-lived gateway 502/503 while containers settle. Do not invent PASS.
+    # Docker `up -d` does not wait for API, agents OR the Next.js listener.
+    # Retry bounded transient 502/connection resets for both API and UI routes.
+    # Do not invent PASS if any component stays unavailable.
     for attempt in range(15):
         try:
             fetch_json('/healthz')
             fetch_json('/api/v1/boot/health')
             fetch_json('/api/v1/modules/agent-health')
+            for page in ('/onboarding', '/live', '/live/configure', '/boot'):
+                with urlopen(base + page, timeout=7) as response:
+                    html = response.read(1000)
+                    if response.status != 200 or not html:
+                        raise RuntimeError(f'Console UI not available: {page}')
             break
         except (OSError, RuntimeError, ValueError):
             # Docker can reset an early HTTP connection while the gateway is
@@ -48,11 +54,7 @@ def main():
         host = fetch_json('/api/v1/host-reports/latest')
         physical = fetch_json('/api/v1/robots/paky-01/telemetry')
         last_calibration = fetch_json('/api/v1/robots/paky-01/calibration/last')
-        for page in ('/onboarding','/live','/live/configure','/boot'):
-            with urlopen(base + page, timeout=7) as response:
-                html = response.read(1000)
-                if response.status != 200 or not html:
-                    raise RuntimeError(f'Console UI not available: {page}')
+        # All Web routes were checked in the bounded startup readiness loop.
         assert health['ok'] and health['actuation_enabled'] is False
         assert status['console_version'] == '0.4.3'
         assert diag['console_version'] == status['console_version']

@@ -66,7 +66,7 @@ Console Boot Manager `ready_non_actuating`, Somatic Runtime e controllo CAN/moto
 
 **Voice (questa chat/repository):**
 - Consolidamento 0.4D e 0.5A **completato su GitHub**.
-- Prossima PR autonoma: **VOICE-0.5A.1 Progressive TTS / Time to first audio**. Piper residente emette blocchi audio, player riproduce progressivamente, metriche latenza al primo campione, rollback su percorso full WAV, pieno supporto Bose A2DP. Non confondere con full-duplex; nessuna modifica al provider cognitivo o PERIPH.
+- Prossima PR autonoma: **VOICE-0.5A.1 Progressive TTS / Time to first audio** (tracciata in https://github.com/OpenRGD/rgd-voice/issues/6). Piper residente emette blocchi audio, player riproduce progressivamente, metriche latenza al primo campione, rollback su percorso full WAV, pieno supporto Bose A2DP. Non confondere con full-duplex; nessuna modifica al provider cognitivo o PERIPH.
 - **VOICE-0.5B AEC/duplex** solo dopo contratto audio PERIPH, con benchmark echo speaker→mic, separazione voce propria, barge-in cancellabile e priorità playback.
 - Valutazione speaker USB interno (Geekworm YB-MVEO3/Pimoroni) separata; Bose Bluetooth A2DP resta uscita ufficialmente supportata. Nessuno speaker nuovo installato.
 

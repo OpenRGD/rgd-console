@@ -55,6 +55,7 @@ def main():
                     raise RuntimeError(f'Console UI not available: {page}')
         assert health['ok'] and health['actuation_enabled'] is False
         assert status['console_version'] == '0.4.3'
+        assert diag['console_version'] == status['console_version']
         assert diag['data_directory_present'] and not diag['actuation_enabled']
         assert module_health['ok'] and module_health['actuation_enabled'] is False
         assert boot_health['ok'] and boot_health['actuation_enabled'] is False
@@ -68,7 +69,7 @@ def main():
         assert last_calibration is None or (last_calibration.get('actuation_enabled') is False and last_calibration.get('physical_calibration_certified') is False)
         assert diag['hardware_scanned_by_backend'] is False
         assert host is None or host['verification_state'] == 'operator_supplied_unverified'
-        print(f'PASS Console Boot v0.4D @ {base} (backend API v{status["console_version"]})')
+        print(f'PASS OpenRGD Console v{status["console_version"]} @ {base} (backend API v{status["console_version"]})')
         print(f'  API: healthy | {len(robots)} robots | {len(models)} model previews')
         print(f'  Host report imported: {host is not None} | motor control: DISABLED')
         print(f"  Registry: {len(module_catalog['catalog'])} module releases | agent: OK | no auto-installs")

@@ -37,7 +37,7 @@ def main():
             # starting. URLError/HTTPError subclass OSError; retry these and
             # raw ConnectionResetError, but still fail after 15 attempts.
             if attempt == 14:
-                print('FAIL Console startup readiness: API/agents did not become available')
+                print('FAIL Console startup readiness: API/agents/UI did not become available')
                 return 1
             time.sleep(2)
 

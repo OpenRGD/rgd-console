@@ -36,23 +36,10 @@ jobs:
           node-version: '22'
       - run: npm install --no-audit --no-fund
         working-directory: apps/web
-      - name: TypeScript check (capture diagnostics)
+      - run: npm run typecheck
         working-directory: apps/web
-        run: |
-          npm run typecheck 2>&1 | tee /tmp/console-web-typecheck.log
-          exit ${PIPESTATUS[0]}
-      - name: Next.js build (capture diagnostics)
+      - run: npm run build
         working-directory: apps/web
-        run: |
-          npm run build 2>&1 | tee /tmp/console-web-build.log
-          exit ${PIPESTATUS[0]}
-      - name: Preserve web failure diagnostics for review
-        if: failure()
-        uses: actions/upload-artifact@v4
-        with:
-          name: console-web-failure-diagnostics
-          path: /tmp/console-web-*.log
-          if-no-files-found: ignore
 
   docker-smoke:
     runs-on: ubuntu-latest

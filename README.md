@@ -1,3 +1,13 @@
+# OpenRGD Console — GitHub software baseline v0.4.3
+
+**Canonical development source:** `OpenRGD/rgd-console` on GitHub. Development uses feature branches and Pull Requests; do not use archived ZIP upgrade instructions to replace an existing checkout.
+
+**Release scope and acceptance:** [Console v0.4.3 software baseline](docs/releases/CONSOLE-v0.4.3.md). The API, Web package, Live badge and diagnostics expose the aligned version `0.4.3`. This is a **non-actuating** software baseline; physical robot compatibility, IMU calibration and motor readiness remain unverified.
+
+The historical wave documentation below is retained for traceability only.
+
+---
+
 # OpenRGD Console — Robot Boot Foundation v0.4D
 
 **Boot & Recovery implemented as an independent, non-actuating service.** This update builds directly on v0.4C Live and the mini-PC-tested v0.4B stack (Rust API, Next.js, Module Agent, Calibration). It does not modify any upstream OpenRGD repositories, Linux bootloader, GNOME login, CAN controller or Somatic Runtime.

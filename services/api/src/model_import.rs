@@ -141,6 +141,9 @@ pub fn inspect_bundle(bytes: &[u8], original_name: &str) -> Result<ImportedModel
                 parent_link: string(&item["connectivity"], "parent_link_ref_str").map(str::to_owned),
                 child_link: string(&item["connectivity"], "child_link_ref_str").map(str::to_owned),
                 origin_xyz_m: vector(&item["geometry_ideal"], "origin_xyz_m_vec3_float"),
+                // Preserve ideal local joint frame orientation for future
+                // visual link FK, without claiming installed encoder/IMU frame calibration.
+                origin_rpy_rad: vector(&item["geometry_ideal"], "origin_rpy_rad_vec3_float"),
                 axis_xyz: vector(&item["geometry_ideal"], "axis_xyz_vec3_float"),
                 lower_limit: finite(&item["limits_ideal"], "position_lower_rad_float"),
                 upper_limit: finite(&item["limits_ideal"], "position_upper_rad_float"),

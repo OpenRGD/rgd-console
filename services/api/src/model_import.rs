@@ -350,6 +350,57 @@ mod tests {
         assert!(message.contains("non contiene un archivio ZIP"));
     }
 
+    #[test]
+    fn source_joint_rpy_is_preserved_as_nominal_geometry_and_missing_rpy_stays_unknown() {
+        let mut writer = ZipWriter::new(Cursor::new(Vec::new()));
+        writer.start_file("spec/01_foundation/description.jsonc", SimpleFileOptions::default()).unwrap();
+        writer.write_all(br#"{
+          "meta_group": {"species_name_str":"SyntheticGeometryOnly"},
+          "kinematic_chain_list": [
+            {"link_id_str":"base"}, {"link_id_str":"arm_a"}, {"link_id_str":"arm_b"}
+          ],
+          "joint_topology_map": {
+            "arm_a_joint": {
+              "type_enum": "REVOLUTE",
+              "connectivity": {"parent_link_ref_str":"base", "child_link_ref_str":"arm_a"},
+              "geometry_ideal": {
+                "origin_xyz_m_vec3_float":[0.10,0.15,0.20],
+                "origin_rpy_rad_vec3_float":[0.25,-1.57,0.50],
+                "axis_xyz_vec3_float":[0,0,1]
+              }
+            },
+            "arm_b_joint": {
+              "type_enum": "REVOLUTE",
+              "connectivity": {"parent_link_ref_str":"arm_a", "child_link_ref_str":"arm_b"},
+              "geometry_ideal": {"origin_xyz_m_vec3_float":[0.1,0.0,0.0]}
+            }
+          }
+        }"#).unwrap();
+        let bytes = writer.finish().unwrap().into_inner();
+        let model = inspect_bundle(&bytes, "synthetic.zip").unwrap();
+        let a = model.joints.iter().find(|j| j.id == "arm_a_joint").unwrap();
+        assert_eq!(a.origin_xyz_m.as_deref(), Some(&[0.10, 0.15, 0.20][..]));
+        assert_eq!(a.origin_rpy_rad.as_deref(), Some(&[0.25, -1.57, 0.50][..]));
+        assert_eq!(a.axis_xyz.as_deref(), Some(&[0.0, 0.0, 1.0][..]));
+        let b = model.joints.iter().find(|j| j.id == "arm_b_joint").unwrap();
+        assert_eq!(b.origin_rpy_rad, None); // missing source != certified [0,0,0]
+        assert_eq!(model.integrity_state, "canonical_not_verified");
+        assert_eq!(model.source_sha256, format!("sha256:{}", sha256(&bytes)));
+    }
+
+    #[test]
+    fn legacy_persisted_joint_without_origin_rpy_still_deserializes() {
+        let old = serde_json::json!({
+            "id":"legacy_arm_joint", "joint_type":"REVOLUTE",
+            "parent_link":"base", "child_link":"arm",
+            "origin_xyz_m":[0.1,0.2,0.3], "axis_xyz":[0.0,0.0,1.0],
+            "lower_limit":null, "upper_limit":null
+        });
+        let joint: RgdJoint = serde_json::from_value(old).unwrap();
+        assert_eq!(joint.origin_rpy_rad, None);
+        assert_eq!(joint.origin_xyz_m.unwrap(), vec![0.1,0.2,0.3]);
+    }
+
     fn hal_test_archive(link: bool) -> Vec<u8> {
         let mut writer = ZipWriter::new(Cursor::new(Vec::new()));
         let description = if link {

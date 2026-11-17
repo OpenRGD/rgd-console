@@ -193,6 +193,8 @@ export interface RgdJoint {
   parent_link: string | null;
   child_link: string | null;
   origin_xyz_m: number[] | null;
+  /** Optional for legacy stored RGD imports; never infer a physical zero. */
+  origin_rpy_rad?: number[] | null;
   axis_xyz: number[] | null;
   lower_limit: number | null;
   upper_limit: number | null;

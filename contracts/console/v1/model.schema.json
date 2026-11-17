@@ -3,25 +3,229 @@
   "$id": "https://openrgd.org/contracts/console/v1/model.schema.json",
   "title": "OpenRGD Console Source-Derived Model Preview v0.2 (non-normative)",
   "type": "object",
-  "required": ["model_id", "name", "source_file", "source_sha256", "source_format", "imported_at", "profile_state", "integrity_state", "geometry_state", "module_refs", "missing_modules", "warnings", "links", "joints", "sensors"],
+  "required": [
+    "model_id",
+    "name",
+    "source_file",
+    "source_sha256",
+    "source_format",
+    "imported_at",
+    "profile_state",
+    "integrity_state",
+    "geometry_state",
+    "module_refs",
+    "missing_modules",
+    "warnings",
+    "links",
+    "joints",
+    "sensors"
+  ],
   "properties": {
-    "model_id": {"type": "string", "pattern": "^rgd-[0-9a-f]{20}$"},
-    "name": {"type": "string"},
-    "source_file": {"type": "string"},
-    "source_sha256": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
-    "source_format": {"const": "openrgd-source-profile-zip"},
-    "imported_at": {"type": "string", "format": "date-time"},
-    "manufacturer": {"type": ["string", "null"]},
-    "standard_version": {"type": ["string", "null"]},
-    "kernel_identity": {"type": ["string", "null"]},
-    "profile_state": {"enum": ["structurally_inspected", "partial_foundation"]},
-    "integrity_state": {"const": "canonical_not_verified"},
-    "geometry_state": {"enum": ["declared_joint_topology_only", "no_joint_topology"]},
-    "module_refs": {"type": "array", "items": {"type": "string"}},
-    "missing_modules": {"type": "array", "items": {"type": "string"}},
-    "warnings": {"type": "array", "items": {"type": "string"}},
-    "links": {"type": "array", "items": {"type": "object", "required": ["id", "mass_kg"], "properties": {"id": {"type": "string"}, "mass_kg": {"type": ["number", "null"]}}}},
-    "joints": {"type": "array", "items": {"type": "object", "required": ["id", "joint_type", "parent_link", "child_link", "origin_xyz_m", "axis_xyz", "lower_limit", "upper_limit"], "properties": {"id": {"type": "string"}, "joint_type": {"type": ["string", "null"]}, "parent_link": {"type": ["string", "null"]}, "child_link": {"type": ["string", "null"]}, "origin_xyz_m": {"type": ["array", "null"], "items": {"type": "number"}, "minItems": 3, "maxItems": 3}, "axis_xyz": {"type": ["array", "null"], "items": {"type": "number"}, "minItems": 3, "maxItems": 3}, "lower_limit": {"type": ["number", "null"]}, "upper_limit": {"type": ["number", "null"]}}}},
-    "sensors": {"type": "array", "items": {"type": "object", "required": ["id", "sensor_type", "parent_frame"], "properties": {"id": {"type": "string"}, "sensor_type": {"type": ["string", "null"]}, "parent_frame": {"type": ["string", "null"]}}}}
+    "model_id": {
+      "type": "string",
+      "pattern": "^rgd-[0-9a-f]{20}$"
+    },
+    "name": {
+      "type": "string"
+    },
+    "source_file": {
+      "type": "string"
+    },
+    "source_sha256": {
+      "type": "string",
+      "pattern": "^sha256:[0-9a-f]{64}$"
+    },
+    "source_format": {
+      "const": "openrgd-source-profile-zip"
+    },
+    "imported_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "manufacturer": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "standard_version": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "kernel_identity": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "profile_state": {
+      "enum": [
+        "structurally_inspected",
+        "partial_foundation"
+      ]
+    },
+    "integrity_state": {
+      "const": "canonical_not_verified"
+    },
+    "geometry_state": {
+      "enum": [
+        "declared_joint_topology_only",
+        "no_joint_topology"
+      ]
+    },
+    "module_refs": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "missing_modules": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "warnings": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "links": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "mass_kg"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "mass_kg": {
+            "type": [
+              "number",
+              "null"
+            ]
+          }
+        }
+      }
+    },
+    "joints": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "joint_type",
+          "parent_link",
+          "child_link",
+          "origin_xyz_m",
+          "axis_xyz",
+          "lower_limit",
+          "upper_limit"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "joint_type": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "parent_link": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "child_link": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "origin_xyz_m": {
+            "type": [
+              "array",
+              "null"
+            ],
+            "items": {
+              "type": "number"
+            },
+            "minItems": 3,
+            "maxItems": 3
+          },
+          "axis_xyz": {
+            "type": [
+              "array",
+              "null"
+            ],
+            "items": {
+              "type": "number"
+            },
+            "minItems": 3,
+            "maxItems": 3
+          },
+          "lower_limit": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "upper_limit": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "origin_rpy_rad": {
+            "type": [
+              "array",
+              "null"
+            ],
+            "items": {
+              "type": "number"
+            },
+            "minItems": 3,
+            "maxItems": 3,
+            "description": "Optional source joint RPY radians; absence/null is UNKNOWN, not a verified zero-frame transform."
+          }
+        }
+      }
+    },
+    "sensors": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "sensor_type",
+          "parent_frame"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "sensor_type": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "parent_frame": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        }
+      }
+    }
   }
 }

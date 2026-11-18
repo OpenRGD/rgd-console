@@ -213,7 +213,8 @@ export function RobotLive({ embedded = false }: { embedded?: boolean } = {}) {
       {view === 'cage' && <div className="live-focus-layout"><Tile heading="CORPO 3D / GABBIA PAKY-01" icon={<BodyIcon size={16} aria-hidden="true" />}>
         <TorsoCagePreview robotId={physical ? selectedRobot?.id ?? null : null}
           imu={physical && imu?.robot_id === selectedRobot?.id ? imu : null}
-          connected={liveWebSocket} now={now} />
+          connected={liveWebSocket} now={now}
+          snapshot={physical && currentSnapshot?.robot_id === selectedRobot?.id ? currentSnapshot : null} />
       </Tile></div>}
 
       {view === 'signals' && <div className="live-focus-layout"><Tile heading="SEGNALI / DATI DISPONIBILI" icon={<Gauge size={16} />}>

@@ -212,3 +212,70 @@
 @media (max-width: 540px) {
   .cage-preview-controls button { flex: 1 1 100%; }
 }
+
+/* Reference-only full-body view: 22 positions are not physical motion evidence. */
+.cage-legend-reference {
+  color: #9cd2ed;
+  letter-spacing: .06em;
+}
+.cage-encoder-panel {
+  border-top: 1px solid var(--live-border);
+  padding-top: 8px;
+  display: grid;
+  gap: 7px;
+  min-width: 0;
+}
+.cage-encoder-heading {
+  display: flex;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 10px;
+  font-size: .72em;
+  font-weight: 850;
+  letter-spacing: .02em;
+}
+.cage-encoder-heading span {
+  color: var(--live-warn);
+  font-size: .93em;
+}
+.cage-encoder-note {
+  font-size: .72em;
+  color: var(--live-muted);
+  margin: 0;
+  line-height: 1.35;
+}
+.cage-encoder-rows {
+  max-height: 195px;
+  overflow-y: auto;
+  border: 1px solid var(--live-border);
+  background: #061117aa;
+  border-radius: 7px;
+  scrollbar-color: #536878 transparent;
+}
+.cage-encoder-row {
+  padding: 5px 7px;
+  border-bottom: 1px solid #283d4880;
+  min-width: 0;
+  display: grid;
+  grid-template-columns: minmax(0,1fr) 72px 125px;
+  align-items: center;
+  gap: 4px;
+  color: var(--live-muted);
+  font-family: ui-monospace, monospace;
+  font-size: .66em;
+  line-height: 1.28;
+}
+.cage-encoder-row:last-child { border-bottom: 0; }
+.cage-encoder-row > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cage-encoder-row > strong { font-size: 1.06em; color: var(--live-ink); text-align: right; white-space: nowrap; }
+.cage-encoder-row > small { text-align: right; font-size: .9em; color: var(--live-muted); overflow: hidden; text-overflow: ellipsis; }
+.cage-encoder-row-observed > small { color: #ffd598; }
+@media (max-width: 950px) {
+  .cage-encoder-row { grid-template-columns: minmax(0,1fr) 62px 99px; }
+  .cage-encoder-rows { max-height: 160px; }
+}
+@media (max-width: 540px) {
+  .cage-encoder-row { grid-template-columns: minmax(0,1fr) 65px 106px; }
+  .cage-encoder-rows { max-height: 190px; }
+}

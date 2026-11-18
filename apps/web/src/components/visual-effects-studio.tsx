@@ -1,16 +1,17 @@
 'use client';
 
 import Link from 'next/link';
-import { useEffect, useState } from 'react';
-import type { CSSProperties } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import type { CSSProperties, ChangeEvent } from 'react';
 import {
   ArrowLeft, CircleDot, Download, Lightbulb, Plus, RotateCcw,
-  ShieldCheck, Sparkles, SlidersHorizontal, Volume2,
+  ShieldCheck, Sparkles, SlidersHorizontal, Volume2, BookOpen, Upload, Eye,
 } from 'lucide-react';
 import './visual-effects-studio.css';
 import { DEMO_EXPRESSION, EyeScreen, ExpressiveEyesStudio, validExpression } from './expressive-eyes';
 import type { EyeExpression } from './expressive-eyes';
 import { ExpressionCatalogManager } from './expression-catalog-manager';
+import paky01EyesPreset from '@/fixtures/paky01-eyes-v0.1.preview.json';
 
 type LightEffect = 'solid' | 'pulse' | 'chase' | 'wave';
 type Effect = LightEffect | 'eye_expression';
@@ -143,6 +144,65 @@ function isDraft(value: unknown): value is StudioProfile {
         target.brightness >= 0 && target.brightness <= 100;
     }));
 }
+
+const PAKY01_EYES_CANONICAL: unknown = paky01EyesPreset;
+const PAKY01_PRESET_SOURCE = 'italiarobotica/paky-01@92c26dd03c52bcec48b2e9906a395a414f2fc064';
+const EYE_SERVICES = new Set(['boot', 'connecting', 'input_accepted', 'transcribing', 'awaiting_user', 'no_input', 'link_lost', 'rest']);
+const EYE_MAIN = new Set(['idle', 'listening', 'thinking', 'speaking', 'error', 'off']);
+const validKey = (s: string) => /^[a-z][a-z0-9_-]{0,79}$/.test(s) && !['constructor','prototype','__proto__'].includes(s);
+const hasOwn = (obj: object, name: string) => Object.prototype.hasOwnProperty.call(obj, name);
+
+/** Import is only an untrusted browser draft, never a robot/runtime configuration. */
+function validCompleteDraft(value: unknown): value is StudioProfile {
+  if (!isDraft(value)) return false;
+  const p = value as StudioProfile;
+  if (Object.keys(p).sort().join('|') !== 'expressions|fallback_scene|mappings|non_actuating|preview_only|revision|robot_id|scenes|schema_version|zones') return false;
+  if (!Array.isArray(p.zones) || !p.zones.length || p.zones.length > 32) return false;
+  if (Object.keys(p.scenes).length < 1 || Object.keys(p.scenes).length > 64 || p.mappings.length > 128) return false;
+  const ids = new Set<string>();
+  for (const z of p.zones) {
+    if (!z || Object.keys(z).sort().join('|') !== 'adapter_id|binding_status|capabilities|id|label' ||
+      typeof z.id !== 'string' || !validKey(z.id) || ids.has(z.id) ||
+      typeof z.label !== 'string' || !z.label || z.label.length > 120 ||
+      !['planned','operator_reported'].includes(z.binding_status) ||
+      !Array.isArray(z.capabilities) || z.capabilities.length < 1 || z.capabilities.length > 12 ||
+      new Set(z.capabilities).size !== z.capabilities.length ||
+      z.capabilities.some(effect => !['solid','pulse','chase','wave','eye_expression'].includes(effect)) ||
+      (z.binding_status === 'planned' && z.adapter_id !== null) ||
+      (z.adapter_id !== null && (typeof z.adapter_id !== 'string' || !/^[a-z][a-z0-9._-]{0,99}$/.test(z.adapter_id)))) return false;
+    ids.add(z.id);
+  }
+  for (const [name, targets] of Object.entries(p.scenes)) {
+    if (!validKey(name) || !Array.isArray(targets) || !targets.length || targets.length > 32) return false;
+    const used = new Set<string>();
+    for (const t of targets) {
+      if (!t || !ids.has(t.zone_id) || used.has(t.zone_id)) return false;
+      used.add(t.zone_id);
+      const z = p.zones.find(zone => zone.id === t.zone_id);
+      if (!z?.capabilities.includes(t.effect)) return false;
+      if (t.effect === 'eye_expression') {
+        if (Object.keys(t).sort().join('|') !== 'effect|expression_id|zone_id' ||
+          !hasOwn(p.expressions, t.expression_id)) return false;
+      } else {
+        if (Object.keys(t).sort().join('|') !== 'brightness|color|effect|zone_id') return false;
+      }
+    }
+  }
+  if (!validKey(p.fallback_scene) || !hasOwn(p.scenes, p.fallback_scene)) return false;
+  if (Object.keys(p.expressions).some(id => !/^[a-z][a-z0-9_]{2,47}$/.test(id) || ['constructor','prototype'].includes(id))) return false;
+  const matches = new Set<string>();
+  for (const m of p.mappings) {
+    if (!m || Object.keys(m).sort().join('|') !== 'event|priority|scene|source' ||
+      typeof m.source !== 'string' || !validKey(m.source) ||
+      typeof m.event !== 'string' || !/^[a-z][a-z0-9._-]{0,99}$/.test(m.event) ||
+      !hasOwn(p.scenes,m.scene) || !Number.isInteger(m.priority) || m.priority < 0 || m.priority > 100) return false;
+    const token = m.source + ':' + m.event + ':' + m.priority;
+    if (matches.has(token)) return false;
+    matches.add(token);
+  }
+  return true;
+}
+
 function upgradeLegacyDraft(old: LegacyProfile): StudioProfile {
   // The saved v0.1 user scene/rule data is preserved: no expression is
   // silently assigned. Only a planned zone and empty catalog are added.
@@ -158,6 +218,7 @@ export function VisualEffectsStudio() {
   const [ruleIndex, setRuleIndex] = useState(2);
   const [overrideScene, setOverrideScene] = useState<string | null>(null);
   const [loaded, setLoaded] = useState(false);
+  const importFileRef = useRef<HTMLInputElement>(null);
   const [message, setMessage] = useState('Nessuna luce reale viene comandata.');
 
   useEffect(() => {
@@ -327,6 +388,43 @@ export function VisualEffectsStudio() {
     setMessage('Profilo virtuale ' + robotId + ' selezionato. I cataloghi restano separati e nessuna configurazione del robot è stata modificata.');
   }
 
+
+  function applyPaky01Preset() {
+    if (profile.robot_id !== 'paky-01' || !validCompleteDraft(PAKY01_EYES_CANONICAL) ||
+      PAKY01_EYES_CANONICAL.robot_id !== 'paky-01') {
+      setMessage('Preset Paky-01 non valido o profilo robot errato: nessuna modifica.');
+      return;
+    }
+    if (!window.confirm('Caricare le 21 ricette Occhi v0.1 e sostituire la bozza locale Paky-01? Esporta prima eventuali modifiche. Nessun robot sarà modificato.')) return;
+    setProfile(JSON.parse(JSON.stringify(PAKY01_EYES_CANONICAL)) as StudioProfile);
+    setRuleIndex(0);
+    setOverrideScene('idle');
+    setMessage('Occhi v0.1 caricati SOLO nella bozza del browser: 21 scene, 21 ricette e 27 regole. Nessun hardware è stato comandato.');
+  }
+
+  async function importDraftFile(event: ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    event.target.value = '';
+    if (!file) return;
+    if (file.size > 128 * 1024 || file.size === 0) {
+      setMessage('Import rifiutato: file JSON vuoto o oltre 128 KiB.'); return;
+    }
+    try {
+      const parsed: unknown = JSON.parse(await file.text());
+      if (!validCompleteDraft(parsed) || parsed.robot_id !== profile.robot_id) {
+        setMessage('Import rifiutato: contratto non valido o profilo destinato a un altro robot.'); return;
+      }
+      if (!window.confirm('Sostituire la bozza locale di ' + profile.robot_id +
+        ' con il file selezionato? Esporta prima eventuali modifiche. Non si modifica il robot.')) return;
+      setProfile(parsed);
+      setRuleIndex(0);
+      setOverrideScene(null);
+      setMessage('Profilo JSON importato nella bozza di ' + profile.robot_id + '. Nessuna modifica a servizi o dispositivi.');
+    } catch {
+      setMessage('Impossibile leggere il JSON: nessuna modifica alla bozza.');
+    }
+  }
+
   function exportDraft() {
     const data = JSON.stringify({ ...profile, revision: profile.revision + 1 }, null, 2) + '\n';
     const blob = new Blob([data], { type: 'application/json' });
@@ -383,6 +481,58 @@ export function VisualEffectsStudio() {
         <div className="panel p-4"><div className="eyebrow">REGOLE D'EVENTO</div><div className="mt-2 text-xl font-semibold">{profile.mappings.length}</div></div>
         <div className="panel p-4"><div className="eyebrow">ZONE &amp; REPERTORIO</div><div className="mt-2 text-xl font-semibold">{profile.zones.length} <span className="text-xs font-normal text-muted">zone · {Object.keys(profile.expressions).length} espressioni in bozza</span></div></div>
       </div>
+
+
+      <section className="panel mb-7 overflow-hidden" aria-label="Repertorio Occhi e profili locali">
+        <div className="flex flex-wrap items-center justify-between gap-4 border-b border-line px-5 py-4">
+          <div>
+            <h2 className="flex items-center gap-2 text-sm font-semibold"><Eye size={17} className="text-mint"/> Repertorio Occhi · Paky-01 v0.1</h2>
+            <p className="mt-1 text-[11px] text-muted">Preset verificato dalla specifica di macchina · 21 ricette, 21 scene, 27 associazioni.</p>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            {profile.robot_id === 'paky-01' &&
+              <button type="button" onClick={applyPaky01Preset} className="rounded-lg border border-mint/30 bg-mint/10 px-3 py-2 text-xs font-semibold text-mint hover:bg-mint/20">
+                <BookOpen size={14} className="mr-1 inline"/> Carica repertorio v0.1
+              </button>}
+            <button type="button" onClick={() => importFileRef.current?.click()} className="rounded-lg border border-line px-3 py-2 text-xs text-slate-200 hover:bg-white/5">
+              <Upload size={14} className="mr-1 inline"/> Importa JSON
+            </button>
+            <input ref={importFileRef} type="file" accept=".json,application/json" className="sr-only"
+              aria-label="Scegli profilo Visual Studio JSON" onChange={importDraftFile}/>
+          </div>
+        </div>
+        <div className="flex flex-wrap items-center justify-between gap-3 px-5 py-3 text-[11px] text-muted">
+          <p>Il caricamento richiede conferma e non sovrascrive automaticamente le tue bozze. Per conservare le modifiche usa «Esporta bozza JSON».</p>
+          <a href="https://github.com/italiarobotica/paky-01/pull/7" target="_blank" rel="noopener noreferrer" className="shrink-0 font-semibold text-mint hover:underline">Specifica originale ↗</a>
+        </div>
+        {profile.robot_id === 'paky-01' && <p className="px-5 pb-3 font-mono text-[10px] text-slate-500">Fonte fissata: {PAKY01_PRESET_SOURCE}</p>}
+      </section>
+
+      {Object.keys(profile.expressions).length > 0 && <section className="panel mb-7 p-5" aria-label="Catalogo rapido espressioni occhi">
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
+          <div><h2 className="text-sm font-semibold">Sfoglia le espressioni</h2>
+            <p className="mt-1 text-xs text-muted">Seleziona una scena per vederla nel simulatore, poi apri l'editor per modificarla e associarla alla bozza.</p></div>
+          <a href="#eye-expression-editor" className="text-xs font-semibold text-mint hover:underline">Apri editor occhi ↓</a>
+        </div>
+        <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+          {Object.entries(profile.scenes).flatMap(([name, sceneTargets]) => {
+            const eyeTarget = sceneTargets.find((t): t is EyeTarget => t.effect === 'eye_expression');
+            const expr = eyeTarget ? profile.expressions[eyeTarget.expression_id] : undefined;
+            return expr ? [{ name, expr }] : [];
+          }).map(({ name, expr }) =>
+            <button key={name} type="button" onClick={() => setOverrideScene(name)} aria-pressed={activeScene === name}
+              className={'rounded-xl border px-3 py-3 text-left transition-colors ' + (activeScene === name ? 'border-mint/50 bg-mint/10' : 'border-line bg-[#101b26] hover:border-slate-500')}>
+              <span className="flex items-center gap-2 text-xs font-semibold text-slate-100">
+                <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: expr.palette.iris }}/>
+                {expr.label}
+              </span>
+              <span className="mt-1 block font-mono text-[10px] text-muted">{name}</span>
+              <span className="mt-2 block text-[10px] text-slate-400">
+                {EYE_MAIN.has(name) ? 'Stato operativo' : EYE_SERVICES.has(name) ? 'Servizio' : 'Espressione'} · {(expr.duration_ms / 1000).toFixed(1)} s
+              </span>
+            </button>)}
+        </div>
+      </section>}
 
       <div className="grid items-start gap-5 xl:grid-cols-[minmax(270px,.95fr)_minmax(360px,1.1fr)_minmax(310px,.95fr)]">
         <section className="panel overflow-hidden">
@@ -485,7 +635,7 @@ export function VisualEffectsStudio() {
         </section>
       </div>
 
-      <div className="mt-8"><ExpressiveEyesStudio key={profile.robot_id}
+      <div id="eye-expression-editor" className="mt-8 scroll-mt-6"><ExpressiveEyesStudio key={profile.robot_id}
         targetRobotId={profile.robot_id} stageInScene={stageExpressionInScene}
         selectedSceneExpression={activeEyeExpression} currentSceneLabel={activeScene}/></div>
       <div className="mt-8"><ExpressionCatalogManager key={profile.robot_id} robotId={profile.robot_id}/></div>

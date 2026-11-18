@@ -3,6 +3,13 @@
  * Not as-built geometry of Paky-01. No physical motor identity or calibration
  * is implied. The source URL, Git revision and exact Git blob SHA are pinned.
  *
+ * Attribution/licensing: source URDF is from HybridRobotics/berkeley-humanoid-lite-assets,
+ * whose assets are under Creative Commons Attribution-ShareAlike 4.0 International
+ * (CC BY-SA 4.0), NOT the OpenRGD MIT code license. This generated extract
+ * retains upstream terms where copyrighted upstream material is incorporated.
+ * Changes: extracted names, hierarchy, origins and orientations into TypeScript.
+ * See https://github.com/HybridRobotics/berkeley-humanoid-lite-assets/blob/main/LICENCE
+ *
  * HybridRobotics/berkeley-humanoid-lite-assets/data/robots/berkeley_humanoid/berkeley_humanoid_lite/urdf/berkeley_humanoid_lite.urdf
  * commit fc90fedd008b1e56a22e3c5221548d6b24f49707
  * blob 13261c106eff81726e1d788d3ccf671a246a6fb3

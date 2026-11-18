@@ -493,17 +493,17 @@ export function VisualEffectsStudio() {
           <div className="flex flex-wrap items-center gap-2">
             {profile.robot_id === 'paky-01' &&
               <button type="button" onClick={applyPaky01Preset} className="rounded-lg border border-mint/30 bg-mint/10 px-3 py-2 text-xs font-semibold text-mint hover:bg-mint/20">
-                <BookOpen size={14} className="mr-1 inline"/> Carica repertorio v0.1
+                <BookOpen size={14} className="mr-1 inline"/> Carica prototipo Paky-01 v0.1
               </button>}
             <button type="button" onClick={() => importFileRef.current?.click()} className="rounded-lg border border-line px-3 py-2 text-xs text-slate-200 hover:bg-white/5">
-              <Upload size={14} className="mr-1 inline"/> Importa JSON
+              <Upload size={14} className="mr-1 inline"/> Importa profilo JSON OpenRGD
             </button>
             <input ref={importFileRef} type="file" accept=".json,application/json" className="sr-only"
               aria-label="Scegli profilo Visual Studio JSON" onChange={importDraftFile}/>
           </div>
         </div>
         <div className="flex flex-wrap items-center justify-between gap-3 px-5 py-3 text-[11px] text-muted">
-          <p>Il caricamento richiede conferma e non sovrascrive automaticamente le tue bozze. Per conservare le modifiche usa «Esporta bozza JSON».</p>
+          <p>Il repertorio universale appartiene a rgd-visual-feedback: genera il profilo con eye_pack_preview.py --robot-id {profile.robot_id} e importalo come JSON. L'esempio Paky-01 è un prototipo storico, non un secondo catalogo canonico. Esporta le bozze prima di sostituirle.</p>
           <a href="https://github.com/italiarobotica/paky-01/pull/7" target="_blank" rel="noopener noreferrer" className="shrink-0 font-semibold text-mint hover:underline">Specifica originale ↗</a>
         </div>
         {profile.robot_id === 'paky-01' && <p className="px-5 pb-3 font-mono text-[10px] text-slate-500">Fonte fissata: {PAKY01_PRESET_SOURCE}</p>}

@@ -8,6 +8,7 @@ Source: `HybridRobotics/berkeley-humanoid-lite-assets`
 - commit: `fc90fedd008b1e56a22e3c5221548d6b24f49707`
 - path: `data/robots/berkeley_humanoid/berkeley_humanoid_lite/urdf/berkeley_humanoid_lite.urdf`
 - Git blob SHA: `13261c106eff81726e1d788d3ccf671a246a6fb3`
+- **Third-party rights:** the upstream `berkeley-humanoid-lite-assets` repository uses **CC BY-SA 4.0** for its assets, distinct from the MIT license of the upstream software. `bhl-v1-reference.ts` is a transformed/extracted snapshot; this draft must preserve the source credit, indicate changes, and comply with applicable CC BY-SA terms. OpenRGD's MIT grant does not relicense copyrighted upstream assets.
 - 26 URDF joints total, **22 actuated revolute** + 4 fixed, 27 links including base.
 
 An exact snapshot of the original 26 joint names, parent/child links, local origins and RPY orientations is stored in `apps/web/src/lib/bhl-v1-reference.ts` with the source pin. `bhl-reference-kinematics.ts` computes all 22 pivot locations from the zero-angle URDF transform chain. It renders reference bones and joint points. No fabricated STL meshes, head/neck CAD, actuator joint zeros, encoder motion or measured link lengths are implied.

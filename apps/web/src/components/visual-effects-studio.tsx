@@ -11,6 +11,7 @@ import './visual-effects-studio.css';
 import { DEMO_EXPRESSION, EyeScreen, ExpressiveEyesStudio, validExpression } from './expressive-eyes';
 import type { EyeExpression } from './expressive-eyes';
 import { ExpressionCatalogManager } from './expression-catalog-manager';
+import { EyeCompositionPreview } from './eye-composition-preview';
 import paky01EyesPreset from '@/fixtures/paky01-eyes-v0.1.preview.json';
 
 type LightEffect = 'solid' | 'pulse' | 'chase' | 'wave';
@@ -639,6 +640,7 @@ export function VisualEffectsStudio() {
         targetRobotId={profile.robot_id} stageInScene={stageExpressionInScene}
         selectedSceneExpression={activeEyeExpression} currentSceneLabel={activeScene}/></div>
       <div className="mt-8"><ExpressionCatalogManager key={profile.robot_id} robotId={profile.robot_id}/></div>
+      <div className="mt-8"><EyeCompositionPreview key={profile.robot_id} robotId={profile.robot_id}/></div>
       <p role="status" className="mt-6 text-xs text-slate-400">{message}</p>
       <div className="mt-8 rounded-xl border border-line bg-[#0e1823] p-5 text-xs leading-6 text-muted">
         <p className="mb-1 flex items-center gap-2 font-semibold text-mint"><ShieldCheck size={15}/> Confine architetturale</p>

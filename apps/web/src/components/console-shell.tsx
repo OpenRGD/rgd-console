@@ -5,13 +5,14 @@ import { useState } from 'react';
 import {
   Activity, Box as BodyIcon, BrainCircuit, ChevronDown, CircleDot, Cpu,
   Database, Gauge, Layers3, LayoutDashboard, Menu, PanelLeftClose, RadioTower,
-  Settings2, ShieldCheck, FileUp, Monitor, Power, X,
+  Settings2, ShieldCheck, FileUp, Monitor, Power, X, Mic2,
 } from 'lucide-react';
 import { SECTIONS, type SectionId } from '@/lib/navigation';
 import { useConsole } from '@/hooks/use-console';
 import { SourceBadge, Pill, EmptyState } from './ui';
 import { Body, Electronics, Memory, Mind, Modules, Overview, Settings, type ConsoleData } from './sections';
 import { OnboardingWizard } from './onboarding';
+import { VoiceReadinessPanel } from './voice-readiness';
 
 const ICONS = {
   overview: LayoutDashboard,
@@ -21,6 +22,7 @@ const ICONS = {
   mind: BrainCircuit,
   memory: Database,
   modules: Layers3,
+  voice: Mic2,
   settings: Settings2,
 };
 
@@ -47,6 +49,7 @@ function RenderSection({ section, data }: { section: SectionId; data: ConsoleDat
     case 'mind': return <Mind {...data} />;
     case 'memory': return <Memory {...data} />;
     case 'modules': return <Modules {...data} />;
+    case 'voice': return <VoiceReadinessPanel robotId={data.robot.id} />;
     case 'settings': return <Settings {...data} />;
   }
 }

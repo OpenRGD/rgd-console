@@ -27,6 +27,7 @@ jobs:
           node-version: '22'
       - run: node --test scripts/*.test.mjs
       - run: python3 -m unittest discover -s scripts -p 'test_host_snapshot.py' -v
+      - run: python3 -m unittest discover -s scripts -p 'test_voice_status.py' -v
       - run: python3 -m unittest discover -s scripts -p 'test_upgrade_v04a.py' -v
       - run: python3 -m unittest discover -s scripts -p 'test_upgrade_v04b.py' -v
       - run: python3 -m unittest discover -s scripts -p 'test_upgrade_v04c.py' -v

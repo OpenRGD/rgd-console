@@ -11,6 +11,7 @@ on:
       - 'scripts/peripheral-host-contract.test.mjs'
       - 'scripts/peripheral-host-preflight.sh'
       - '.github/workflows/peripheral-contract.yml'
+      - '.github/workflows/verify.yml' # baseline CI changes also require candidate regression checks
   pull_request:
     paths:
       - 'contracts/console/v1/peripheral-*.schema.json'
@@ -22,6 +23,7 @@ on:
       - 'scripts/peripheral-host-contract.test.mjs'
       - 'scripts/peripheral-host-preflight.sh'
       - '.github/workflows/peripheral-contract.yml'
+      - '.github/workflows/verify.yml' # baseline CI changes also require candidate regression checks
 
 permissions:
   contents: read

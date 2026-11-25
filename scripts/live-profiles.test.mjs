@@ -73,5 +73,5 @@ test('Live route is independent of dynamic Console sections, and Docker startup 
   assert.match(upgrade, /--exclude='\.\/data'/);
   assert.match(upgrade, /--build --no-deps web/);
   assert.doesNotMatch(upgrade, /compose down -v|rm -rf .*module_data|systemctl|loginctl|gdm|set-default|grub/);
-  assert.match(load('scripts/doctor.py'), /for page in \('\/onboarding','\/live','\/live\/configure','\/boot'\)/);
+  assert.match(load('scripts/doctor.py'), /for page in \('\/onboarding',\s*'\/live',\s*'\/live\/configure',\s*'\/boot'\)/);
 });

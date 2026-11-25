@@ -1,6 +1,12 @@
-# OpenRGD Console — Robot Boot Foundation v0.4D
+# OpenRGD Console — GitHub software baseline v0.4.3
 
-**Boot & Recovery implemented as an independent, non-actuating service.** This update builds directly on v0.4C Live and the mini-PC-tested v0.4B stack (Rust API, Next.js, Module Agent, Calibration). It does not modify any upstream OpenRGD repositories, Linux bootloader, GNOME login, CAN controller or Somatic Runtime.
+**Canonical development source:** `OpenRGD/rgd-console` on GitHub. Development uses feature branches and Pull Requests; do not use archived ZIP upgrade instructions to replace an existing checkout.
+
+**Release scope and acceptance:** [Console v0.4.3 software baseline](docs/releases/CONSOLE-v0.4.3.md). The API, Web package, Live badge and diagnostics expose the aligned version `0.4.3`. This is a **non-actuating** software baseline; physical robot compatibility, IMU calibration and motor readiness remain unverified.
+
+## Peripheral Manager / Reality Ingress — candidate integration (NOT released)
+
+The following source-only proposal exists on this review branch, not in the published v0.4.3 release. The existing producer-side IMU export and offline RI correlation remain independent of the running Console and its live IMU path.
 
 ## PERIPH-0.2 — Host Peripheral Manager pilot (source only)
 
@@ -36,6 +42,14 @@ Do not overwrite the local Console IMU v0.5 overlays with this branch.
 See [the host commissioning guide](docs/PERIPH-0.2-HOST-MANAGER-BENCH.md),
 [the generic contracts](docs/PERIPHERAL-MANAGER-CORE-v01.md), and
 [the first IMU adapter RFC](docs/P01-IMU-PUBLISHER-CONTROL-v01.md).
+
+The historical wave documentation below is retained for traceability only.
+
+---
+
+# OpenRGD Console — Robot Boot Foundation v0.4D
+
+**Boot & Recovery implemented as an independent, non-actuating service.** This update builds directly on v0.4C Live and the mini-PC-tested v0.4B stack (Rust API, Next.js, Module Agent, Calibration). It does not modify any upstream OpenRGD repositories, Linux bootloader, GNOME login, CAN controller or Somatic Runtime.
 
 ## New in v0.4D
 

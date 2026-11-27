@@ -138,6 +138,11 @@ def validate_cal02_report(data: Any, source: SourceTree | None = None) -> dict[s
         validate_report_schema(data)
     except ValueError as exc:
         raise InspectionError('CAL_REPORT_SCHEMA_INVALID: report CAL-0.2 non conforme') from exc
+    # Defense in depth: keep the physical-authority invariants explicit at the route.
+    if any(data[field] is not False for field in (
+            'current_robot_position_observed', 'physical_drift_evaluated',
+            'claims_physical_calibration_certified')):
+        raise InspectionError('CAL_REPORT_AUTHORITY_INVALID: dichiarazioni fisiche non ammesse')
     if (data['profile_id'] is not None or data['profile_state'] is not None
             or data['profile_binding'] != 'no_profile' or data['export_preview'] is not None):
         raise InspectionError('CAL_REPORT_PROFILE_CONTEXT: profilo o delta non ammesso nella route passiva')

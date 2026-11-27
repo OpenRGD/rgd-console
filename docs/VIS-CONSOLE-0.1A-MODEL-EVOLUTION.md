@@ -1,7 +1,7 @@
 # VIS-CONSOLE-0.1A — Source model XYZ/RPY + Evolution/Visual revision boundary
 
 **2026-11-17 · IMPLEMENTATION CANDIDATE / READ-ONLY / NON-NORMATIVE.**
-**Base:** `OpenRGD/rgd-console` current `main` (`c996039`), deliberately **not** stacked on old draft #2/#10. No production deployment, ZIP media imports, actuator controls or schema-authority promotion.
+**Consolidation 27 November 2026 / CONSOLE-023C:** base `OpenRGD/rgd-console@b331dd32415eeda0d107676920a6dea91170cc4f` (PERIPH source consolidation); original #15 head `271b1323f42c39c056a990f6910169cd3c23140e` retained as Git parent. Deliberately **not** stacked on old draft #2/#10. No production deployment, ZIP media imports, actuator controls or schema-authority promotion.
 
 ## Actual source-model metadata implemented in 0.1A
 
@@ -12,7 +12,9 @@ This scoped change preserves optional `origin_rpy_rad` on `RgdJoint` from the de
 - Rust: `services/api/src/model.rs` optional `origin_rpy_rad` with `serde(default)`; `model_import.rs` extracts finite length-3 source angles.
 - Web: `apps/web/src/lib/contracts.ts` optional field for legacy imports.
 - Console JSON schema: additive optional field, source-only.
-- Rust tests cover real ZIP-backed JSONC import with XYZ/RPY, a missing RPY (not invented), and legacy stored struct backward compatibility.
+- Rust tests cover real ZIP-backed JSONC import with XYZ/RPY, explicit zero vs missing/malformed RPY, legacy stored struct compatibility and untrusted companion files not issuing any authority. The dedicated interop CI uses Core's exact reference description and actual URDFImporter output from `afe1a831b950a4e6560f0285a0103fc4eaa343b7`.
+- Onboarding ModelSummary now shows archive import ID, RPY coverage and nominal roll/pitch/yaw in radians, plus explicit non-acquired/non-assessed revision dimensions. Actual UI helper has Node tests; browser QA remains pending.
+- Legacy persisted models remain readable and unknown for missing RPY. Existing import deduplication returns the saved record for identical archive SHA, so re-uploading the identical ZIP does **not** backfill RPY. No migration, overwrite, new robot enrollment or source-root change here. A later explicit metadata refresh must re-read exact verified original bytes and preserve existing model/instance links.
 
 ### Already defined by canonical OpenRGD (source-checked)
 
@@ -59,9 +61,9 @@ For compatibility with candidate Core-C (PR #13), a RGD/model revision can prese
 ### Metadata still to freeze before secure visual ingest (P0, NOT implemented)
 
 Proposed extra read-only keys (shape/names subject to candidate contract review):
-- `source_root_digest` — authenticated only after a real `rgd check`, otherwise `null`.
-- `visual_asset_set_digest` — digest of verified `assets/visual/manifest.json`, otherwise `null`.
-- `as_built_revision_ref` — separately reviewed physical installation snapshot, otherwise `null`.
+- `source_root_digest` — separate Core-owned integrity assessment; even a matching `rgd check` is not authentication or proof of completeness. No value issued by this importer.
+- `visual_manifest_sha256` — candidate owner field for an independent visual manifest commitment; no manifest is acquired by this importer.
+- `as_built_revision_ref` — separately resolved candidate AsBuiltRevision, local digest/claimed context only until external binding review. No value acquired here.
 - `mutation_history_refs[]` — externally resolved immutable History refs (not trusted inline event text).
 - `calibration_revision_ref` — externally verified calibration for exact installed graph, otherwise `null`.
 
@@ -78,3 +80,19 @@ Proposed extra read-only keys (shape/names subject to candidate contract review)
 **Main Console (8088), motor bus, physical IMU publisher, canonical RGD source and original preview (8099) must not be changed by 0.1A.**
 
 Cross-reference: [Console #14](https://github.com/OpenRGD/rgd-console/issues/14) for actual delivery gates; [Paky-01 #5](https://github.com/italiarobotica/paky-01/pull/5) for 26 CC BY-SA 4.0 original mesh links.
+
+## CONSOLE-023C — current owner pins and return (2026-11-27)
+
+| Boundary | Pin / responsibility |
+| --- | --- |
+| Core canonical reference / URDF import | `afe1a831b950a4e6560f0285a0103fc4eaa343b7`, tested source projection only |
+| [VIS #7](https://github.com/OpenRGD/openrgd/pull/7) | `3e0f79c2b249dc6b27a8fc8747b33de7ab007f5c`, candidate asset manifest, visual origin and offline verifier |
+| [EVOL #16](https://github.com/OpenRGD/openrgd/pull/16) | `d37f5f4eb3073d14a1253886f2180fe19b45d0fb`, candidate HardwareMutationEvent and AsBuiltRevision, Core-owned Python digest/transition checks |
+| [CAL #9](https://github.com/OpenRGD/rgd-calibration/pull/9) / [Console #23](https://github.com/OpenRGD/rgd-console/pull/23) | CAL owner and source/digest conformance; future CORE-CAL-01A index/assessment boundary, not a physical calibration claim |
+| [Paky #5](https://github.com/italiarobotica/paky-01/pull/5) | reference CAD owner, 26 meshes not imported or redistributed here |
+
+EVOL #16 requires the five false authority flags, claimed robot/enrollment refs, revision and predecessor digest, `design_source_root` and independent `visual_manifest_sha256`, affected slots and calibration/safety review. Its sorted-JSON record digest is local candidate consistency, not JCS, signature, verified identity, Chronon or installation. An appearance-only change cannot create a hardware mutation. Do not reimplement that validator, transition or digest algorithm in Console. Await owner approval of a versioned, authorized read-side metadata interface before ingesting candidate snapshots. The existing model importer ignores the JSON companions; no claim that it validates their contents. No new schema fields for unverified links or IDs.
+
+The next UI step is browser QA on an isolated **synthetic** workspace (not the :8099 production GET proxy for writes): check explicit zero, missing legacy fields, mixed vectors, nominal label, separate provenance, unchanged archived bytes/IDs and no physical controls. Candidate CI validates the actual source importer and frontend formatting, not live FK or visual asset delivery. A later 023D reconciles #2/#10 with this additive field; use the same source model, never duplicate geometry or acquire an encoder to populate nominal RPY.
+
+No merge or deployment until explicit review/QA. No registry, CAL, Boot, PERIPH, IMU, hardware, upload limit, workspace migration, new API or canonical schema changes in this wave.

@@ -491,6 +491,19 @@ mod tests {
         println!("PASS pinned Core reference + actual URDF importer: declared nonzero / explicit zero / unknown RPY, unchanged archive identity");
     }
 
+    #[test]
+    #[ignore = "explicit external reference fixture; never an installed robot test"]
+    fn export_nominal_body_fixture() {
+        let source = std::path::PathBuf::from(std::env::var_os("CONSOLE_BODY_FIXTURE_ZIP").expect("explicit fixture ZIP required"));
+        let output = std::path::PathBuf::from(std::env::var_os("CONSOLE_BODY_FIXTURE_JSON").expect("explicit output required"));
+        let archive = std::fs::read(source).unwrap();
+        let model = inspect_bundle(&archive, "reference.rgd").unwrap();
+        assert_eq!(model.source_sha256, format!("sha256:{}", sha256(&archive)));
+        assert_eq!(model.integrity_state, "canonical_not_verified");
+        let mut target = std::fs::OpenOptions::new().write(true).create_new(true).open(output).unwrap();
+        target.write_all(&serde_json::to_vec_pretty(&model).unwrap()).unwrap();
+    }
+
     fn hal_test_archive(link: bool) -> Vec<u8> {
         let mut writer = ZipWriter::new(Cursor::new(Vec::new()));
         let description = if link {

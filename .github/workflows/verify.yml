@@ -1,13 +1,27 @@
 name: Console Foundation checks
 on:
   push:
+    branches: [main]
   pull_request:
+
+# One run per PR head or main commit; don't rebuild Docker for every
+# intermediate push on an already open feature branch.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
 
 jobs:
   contracts:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - name: Stage synthetic registry (CI only)
+        run: |
+          mkdir -p config
+          test ! -e config/robots.json
+          test ! -e config/modules.json
+          cp .github/fixtures/robots.json config/robots.json
+          cp .github/fixtures/modules.json config/modules.json
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
@@ -24,6 +38,13 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - name: Stage synthetic registry (CI only)
+        run: |
+          mkdir -p config
+          test ! -e config/robots.json
+          test ! -e config/modules.json
+          cp .github/fixtures/robots.json config/robots.json
+          cp .github/fixtures/modules.json config/modules.json
       - uses: dtolnay/rust-toolchain@stable
       - run: cargo test --manifest-path services/api/Cargo.toml
 
@@ -45,8 +66,16 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - name: Stage synthetic registry (CI only)
+        run: |
+          mkdir -p config
+          test ! -e config/robots.json
+          test ! -e config/modules.json
+          cp .github/fixtures/robots.json config/robots.json
+          cp .github/fixtures/modules.json config/modules.json
       - run: docker compose up --build -d
-      - run: python3 scripts/doctor.py
+      - name: Wait for Console API, Boot Manager and Module Agent
+        run: python3 scripts/doctor.py
       - run: python3 scripts/boot-smoke.py
       - name: Report containers and clean up
         if: always()

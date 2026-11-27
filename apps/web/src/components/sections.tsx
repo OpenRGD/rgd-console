@@ -12,6 +12,8 @@ import {
 import type { ConsoleEvent, ConsoleStatus, ImportedModel, ModuleManifest, RobotRecord, TelemetrySnapshot } from '@/lib/contracts';
 import { apiGet } from '@/lib/api';
 import { ModelSummary } from './onboarding';
+import { BodyEncoderPanel } from './body-encoder-panel';
+import { describeNominalRpy } from '@/lib/model-metadata';
 import { ModuleManager } from './module-manager';
 import { EmptyState, EventTimeline, measurementText, MetricTile, Panel, Pill, SectionHeading, SourceBadge, StateBlock, useNow } from './ui';
 
@@ -125,31 +127,33 @@ export function Electronics({ robot, snapshot, history }: ConsoleData) {
   </>;
 }
 
-export function Body({ robot, snapshot }: ConsoleData) {
-  const [model, setModel] = useState<ImportedModel | null>(null);
+export function Body({ robot, snapshot, streamStatus }: ConsoleData) {
+  const now=useNow();
+  const [loaded, setLoaded] = useState<{robotId:string;model:ImportedModel}|null>(null);
+  const model=loaded && loaded.robotId===robot.id && loaded.model.model_id===robot.rgd_model_id ? loaded.model : null;
   const [selectedJoint, setSelectedJoint] = useState<string | null>(null);
   const [error, setError] = useState(false);
   useEffect(() => {
     let active = true;
-    setModel(null); setError(false); setSelectedJoint(null);
+    setLoaded(null); setError(false); setSelectedJoint(null);
     if (!robot.rgd_model_id) return;
     void apiGet<ImportedModel>(`/robots/${encodeURIComponent(robot.id)}/model`)
-      .then(data => { if (active) setModel(data); })
+      .then(data => { if (active && data.model_id===robot.rgd_model_id) setLoaded({robotId:robot.id,model:data}); })
       .catch(() => { if (active) setError(true); });
     return () => { active = false; };
   }, [robot.id, robot.rgd_model_id]);
   const joint = model?.joints.find(j => j.id === selectedJoint) ?? null;
-  const physicalSample = snapshot?.motors.find(m => m.joint === selectedJoint) ?? null;
   return <>
     <SectionHeading overline="02 / EMBODIMENT" title="Body" description="Modello corporeo dichiarato e telemetria osservata sono livelli distinti. Nessuna posa viene stimata senza trasformazioni e misure sufficienti." extra={<SourceBadge kind={robot.kind} />} />
     {error && <div role="alert" className="mb-4 rounded-lg border border-rose-400/30 bg-rose-500/10 p-4 text-xs text-rose-200">Il modello RGD non è disponibile in questo momento.</div>}
     <div className="grid gap-5 xl:grid-cols-[1.55fr_.8fr]">
-      <Panel title="3D workspace" subtitle="Solo assi di riferimento: la geometria fisica richiede asset e trasformazioni verificabili" action={<Pill tone="amber">GEOMETRIA 3D NON VERIFICATA</Pill>}><div className="p-4"><BodyViewport /></div></Panel>
+      <Panel title="3D workspace" subtitle="Origini dei frame dal modello RGD · nessuna posa fisica" action={<Pill tone="amber">MODELLO NOMINALE</Pill>}><div className="p-4"><BodyViewport model={model} selectedJoint={selectedJoint}/></div></Panel>
       <Panel title={model ? 'Joint topology · RGD' : 'Articolazioni'} subtitle={model ? 'Selezione del modello teorico, non comando motorio' : 'Nessun profilo RGD associato'}>
         {model?.joints.length ? <div className="max-h-[425px] overflow-y-auto divide-y divide-line">{model.joints.map(item => <button type="button" key={item.id} onClick={() => setSelectedJoint(item.id)} className={`flex w-full items-center justify-between gap-3 px-5 py-4 text-left transition hover:bg-white/[.04] ${selectedJoint === item.id ? 'bg-mint/[.06]' : ''}`}><span><span className="mono block break-all text-xs font-medium text-slate-100">{item.id}</span><span className="mt-1 block text-[11px] text-muted">{item.parent_link ?? '—'} → {item.child_link ?? '—'}</span></span><ArrowRight size={16} className={selectedJoint === item.id ? 'text-mint' : 'text-muted'} /></button>)}</div> : <EmptyState title="Nessuna topologia importata" message="Per caricare link e joint vai su Onboarding e importa un profilo RGD; il simulatore non inventa una descrizione corporea." icon={<BoxIcon size={21} />} />}
-        <div className="soft-divider px-5 py-5"><div className="eyebrow">DETTAGLIO JOINT</div>{joint ? <div className="mt-3 space-y-2 text-xs"><div className="flex justify-between gap-2"><span className="text-muted">Tipo dichiarato</span><span className="mono">{joint.joint_type ?? '—'}</span></div><div className="flex justify-between gap-2"><span className="text-muted">Limiti nominali</span><span className="mono">{joint.lower_limit ?? '?'} … {joint.upper_limit ?? '?'} rad</span></div><div className="flex justify-between gap-2"><span className="text-muted">Posizione fisica</span>{physicalSample ? <MetricInline measurement={physicalSample.position} /> : <span className="text-amber">Non osservata</span>}</div></div> : <p className="mt-2 text-xs text-muted">Seleziona un joint dichiarato dal profilo RGD.</p>}</div>
+        <div className="soft-divider px-5 py-5"><div className="eyebrow">DETTAGLIO JOINT</div>{joint ? <div className="mt-3 space-y-2 text-xs"><div className="flex justify-between gap-2"><span className="text-muted">Tipo dichiarato</span><span className="mono">{joint.joint_type ?? '—'}</span></div><div className="flex justify-between gap-2"><span className="text-muted">Limiti nominali</span><span className="mono">{joint.lower_limit ?? '?'} … {joint.upper_limit ?? '?'} rad</span></div><div className="flex justify-between gap-2"><span className="text-muted">RPY nominale (rad)</span><span className="mono">{describeNominalRpy(joint.origin_rpy_rad)}</span></div><div className="flex justify-between gap-2"><span className="text-muted">Posa fisica</span><span className="text-amber">Non verificata</span></div></div> : <p className="mt-2 text-xs text-muted">Seleziona un joint dichiarato dal profilo RGD.</p>}</div>
       </Panel>
     </div>
+    <div className="mt-5"><BodyEncoderPanel model={model} snapshot={snapshot} robotId={robot.id} physicalRobot={robot.kind==='physical'} connected={streamStatus==='live'} now={now} selectedJoint={joint?.id??null}/></div>
     {model && <div className="mt-6"><ModelSummary model={model} /></div>}
     {!model && <div className="mt-4 rounded-xl border border-line p-4 text-xs text-muted">Il robot selezionato non ha ancora un profilo RGD associato. Apri <a className="font-semibold text-mint hover:underline" href="/onboarding">Onboarding</a> per caricarne uno.</div>}
   </>;

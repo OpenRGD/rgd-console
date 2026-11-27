@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import dynamic from 'next/dynamic';
+import { BodyEncoderPanel } from '@/components/body-encoder-panel';
 import { useEffect, useState, type CSSProperties } from 'react';
 import {
   Activity, ArrowLeft, BatteryCharging, Box as BodyIcon, ChevronDown, CircleDot,
@@ -16,13 +17,8 @@ import type { BootReport, ConsoleEvent, Measurement, ImportedModel, TelemetrySna
 import { useNow } from '@/components/ui';
 import './robot-live.css';
 
-type LiveView = 'overview' | 'cage' | 'signals' | 'activity';
-
-// Load WebGL only when the operator opens the 3D panel; keep default Live lightweight.
-const TorsoCagePreview = dynamic(() => import('@/components/torso-cage-preview'), {
-  ssr: false,
-  loading: () => <p className="live-note" role="status">Caricamento anteprima gabbia 3D…</p>,
-});
+const BodyViewport = dynamic(() => import('@/components/body-viewport'), {ssr:false,loading:()=> <div className="h-[320px] animate-pulse rounded-xl bg-[#0a121b]"/>});
+type LiveView = 'overview' | 'body' | 'signals' | 'activity';
 type CatalogStatus = 'ready' | 'source_only' | 'not_installed' | 'tampered' | 'unknown';
 interface RegistryResponse {
   catalog: Array<{ descriptor: { id: string }; installation: { state: string } }>;
@@ -82,7 +78,7 @@ export function RobotLive({ embedded = false }: { embedded?: boolean } = {}) {
   const [calibrationStatus, setCalibrationStatus] = useState<CatalogStatus>('unknown');
   const [bootStatus, setBootStatus] = useState<BootReport['status'] | 'offline'>('offline');
   const [clockHydrated, setClockHydrated] = useState(false);
-  const [importedModel, setImportedModel] = useState<ImportedModel | null>(null);
+  const [loadedModel, setLoadedModel] = useState<{robotId:string;model:ImportedModel}|null>(null);
   const { robots, selectedRobot, selectRobot, snapshot, imu, events, status, streamStatus, apiError } = useConsole();
   const now = useNow();
 
@@ -124,15 +120,17 @@ export function RobotLive({ embedded = false }: { embedded?: boolean } = {}) {
 
   useEffect(() => {
     const abort = new AbortController();
-    setImportedModel(null);
+    setLoadedModel(null);
     if (selectedRobot?.rgd_model_id) {
-      void apiGet<ImportedModel>(`/robots/${encodeURIComponent(selectedRobot.id)}/model`, abort.signal)
-        .then(data => { if (!abort.signal.aborted) setImportedModel(data); })
+      const robotId=selectedRobot.id, modelId=selectedRobot.rgd_model_id;
+      void apiGet<ImportedModel>(`/robots/${encodeURIComponent(robotId)}/model`, abort.signal)
+        .then(data => { if (!abort.signal.aborted && data.model_id===modelId) setLoadedModel({robotId,model:data}); })
         .catch(() => {});
     }
     return () => abort.abort();
   }, [selectedRobot?.id, selectedRobot?.rgd_model_id]);
 
+  const importedModel = loadedModel && loadedModel.robotId===selectedRobot?.id && loadedModel.model.model_id===selectedRobot?.rgd_model_id ? loadedModel.model : null;
   const liveWebSocket = streamStatus === 'live' && !apiError;
   const correctSnapshot = !!selectedRobot && snapshot?.robot_id === selectedRobot.id;
   const currentSnapshot = correctSnapshot ? snapshot : null;
@@ -159,7 +157,7 @@ export function RobotLive({ embedded = false }: { embedded?: boolean } = {}) {
   return <main id="live-main" className={`live-shell ${settings.contrast === 'high' ? 'live-high-contrast' : ''} ${settings.reduced_motion ? 'live-reduced-motion' : ''} ${isEmbedded ? 'live-embedded' : ''}`} style={style}>
     <a className="live-skip" href="#live-panels">Vai ai pannelli</a>
     <header className="live-header">
-      <div className="live-brand"><CircleDot aria-hidden="true" size={23} /><div><strong>Open<span>RGD</span></strong><small>LIVE / v0.4D</small></div></div>
+      <div className="live-brand"><CircleDot aria-hidden="true" size={23} /><div><strong>Open<span>RGD</span></strong><small>LIVE / v0.4.3</small></div></div>
       <div className="live-context">
         <label htmlFor="live-robot" className="live-hidden-label">Robot visualizzato</label>
         <select id="live-robot" disabled={!robots.length} value={selectedRobot?.id ?? ''} onChange={e => selectRobot(e.target.value)}>
@@ -210,18 +208,18 @@ export function RobotLive({ embedded = false }: { embedded?: boolean } = {}) {
         {settings.visible_panels.activity && <div className="live-grid-activity"><Tile heading="EVENTI / DIAGNOSTICA" icon={<Activity size={15} aria-hidden="true" />} secondary><EventRows events={selectedEventRows} /></Tile></div>}
       </div>}
 
-      {view === 'cage' && <div className="live-focus-layout"><Tile heading="CORPO 3D / GABBIA PAKY-01" icon={<BodyIcon size={16} aria-hidden="true" />}>
-        <TorsoCagePreview robotId={physical ? selectedRobot?.id ?? null : null}
-          imu={physical && imu?.robot_id === selectedRobot?.id ? imu : null}
-          connected={liveWebSocket} now={now}
-          snapshot={physical && currentSnapshot?.robot_id === selectedRobot?.id ? currentSnapshot : null} />
+      {view === 'body' && <div className="live-focus-layout"><Tile heading="CORPO 3D / MODELLO NOMINALE" icon={<BodyIcon size={16}/>}>
+        <BodyViewport model={importedModel}/>
+        <BodyEncoderPanel model={importedModel} snapshot={currentSnapshot} robotId={selectedRobot?.id??null} physicalRobot={physical} connected={liveWebSocket} now={now}/>
+        {physical && <ImuPanel imu={imu?.robot_id===selectedRobot?.id?imu:null} connected={liveWebSocket} now={now}/>}
+        <p className="live-note">L’IMU mostra soltanto gli assi sensoriali: nessuna rotazione del corpo senza trasformazione di montaggio verificata. Nessun comando hardware.</p>
       </Tile></div>}
 
       {view === 'signals' && <div className="live-focus-layout"><Tile heading="SEGNALI / DATI DISPONIBILI" icon={<Gauge size={16} />}>
         <MeterGrid snapshot={currentSnapshot} now={now} wsLive={liveWebSocket} />
         <div className="live-focus-list"><div className="live-service-row"><span>Temperatura</span><strong>{formattedReading(currentSnapshot?.power.temperature, now, liveWebSocket)}</strong></div><div className="live-service-row"><span>CAN</span><strong>{adapterSimulated && liveWebSocket ? 'SIMULATO' : hardwareConnected ? currentSnapshot?.can.bus_state : 'NESSUN DATO ATTUALE'}</strong></div><div className="live-service-row"><span>Controller osservati</span><strong>{hardwareConnected ? currentSnapshot?.controllers.length ?? '—' : isSimulator && liveWebSocket ? currentSnapshot?.controllers.length ?? '—' : '—'}</strong></div><div className="live-service-row"><span>Clock domain</span><strong>{currentSnapshot?.clock_domain ?? '—'}</strong></div><div className="live-service-row"><span>Sequenza</span><strong>{currentSnapshot?.sequence ?? '—'}</strong></div></div>
         {physical && <ImuPanel imu={imu?.robot_id === selectedRobot?.id ? imu : null} connected={liveWebSocket} now={now} />}
-        <p className="live-note">I dati non attuali sono mostrati come indisponibili. Le misure simulate non sono letture di Paky-01.</p>
+        <p className="live-note">I dati non attuali sono mostrati come indisponibili. Le misure simulate non sono letture di un robot fisico.</p>
       </Tile></div>}
 
       {view === 'activity' && <div className="live-focus-layout"><Tile heading="EVENT STREAM / REGISTRO CONSOLE" icon={<HeartPulse size={16} />}>
@@ -231,7 +229,7 @@ export function RobotLive({ embedded = false }: { embedded?: boolean } = {}) {
 
     <footer className="live-footer" aria-label="Navigazione Live">
       <button type="button" onClick={() => setView('overview')} aria-pressed={view === 'overview'} className={view === 'overview' ? 'live-tab-active' : ''}><BodyIcon size={17}/><span>OVERVIEW</span></button>
-      <button type="button" onClick={() => setView('cage')} aria-pressed={view === 'cage'} className={view === 'cage' ? 'live-tab-active' : ''}><BodyIcon size={17}/><span>CORPO 3D</span></button>
+      <button type="button" onClick={() => setView('body')} aria-pressed={view === 'body'} className={view === 'body' ? 'live-tab-active' : ''}><BodyIcon size={17}/><span>CORPO 3D</span></button>
       <button type="button" onClick={() => setView('signals')} aria-pressed={view === 'signals'} className={view === 'signals' ? 'live-tab-active' : ''}><BatteryCharging size={17}/><span>TELEMETRIA</span></button>
       <button type="button" onClick={() => setView('activity')} aria-pressed={view === 'activity'} className={view === 'activity' ? 'live-tab-active' : ''}><Activity size={17}/><span>EVENTI</span></button>
       <div className="live-footer-boundary"><ShieldCheck size={16}/><span>READ ONLY · ROBOT LIVE PREVIEW</span></div>

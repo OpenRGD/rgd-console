@@ -34,7 +34,7 @@ async fn health() -> Json<Value> {
 async fn status(State(state): State<AppState>) -> Json<Value> {
     Json(json!({
         "api_version": API_VERSION,
-        "console_version": "0.4.3",
+        "console_version": env!("CARGO_PKG_VERSION"),
         "read_only": false,
         "writes_scope": "profile_import_instance_registry_unverified_bindings_host_report_explicit_install_passive_inspect_boot_profile_selection_only",
         "actuation_enabled": false,
@@ -329,7 +329,7 @@ async fn installation_diagnostics(State(state): State<AppState>) -> Json<Value> 
     let data_path = state.data_dir.as_path();
     Json(json!({
         "schema_version":"console.installation-diagnostics.v1",
-        "console_version":"0.4.1",
+        "console_version":env!("CARGO_PKG_VERSION"),
         "api_reachable":true,
         "data_directory_present":data_path.is_dir(),
         "registered_robots":state.all_robots().await.len(),

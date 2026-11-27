@@ -1,0 +1,32 @@
+{
+  "registry_version": "console.robots.v1",
+  "robots": [
+    {
+      "id": "sim-lab-01",
+      "name": "Synthetic CI Simulator",
+      "model": "Synthetic telemetry only",
+      "manufacturer": "OpenRGD CI",
+      "kind": "simulated",
+      "adapter_id": "console.simulated.v1",
+      "rgt_model_ref": null
+    },
+    {
+      "id": "paky-01",
+      "name": "Paky-01 CI Placeholder",
+      "model": "Unbound placeholder; no hardware",
+      "manufacturer": "OpenRGD CI",
+      "kind": "physical",
+      "adapter_id": "console.unbound.v1",
+      "rgt_model_ref": null
+    },
+    {
+      "id": "so-101",
+      "name": "SO-101 CI Placeholder",
+      "model": "Unbound placeholder; no hardware",
+      "manufacturer": "OpenRGD CI",
+      "kind": "physical",
+      "adapter_id": "console.unbound.v1",
+      "rgt_model_ref": null
+    }
+  ]
+}

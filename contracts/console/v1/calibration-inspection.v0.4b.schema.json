@@ -85,7 +85,10 @@
           "items": {
             "type": "string",
             "pattern": "^(description|calibration|actuation_topology|hal_mapping|sensor_fidelity)\\.jsonc$"
-          }
+          },
+          "minItems": 1,
+          "maxItems": 5,
+          "uniqueItems": true
         },
         "evidence_class": {
           "const": "declared_profile_only_not_physical_observation"
@@ -97,49 +100,59 @@
           "const": false
         },
         "report": {
-          "type": "object",
-          "required": [
-            "report_version",
-            "model_id",
-            "coverage",
-            "parameters",
-            "findings",
-            "current_robot_position_observed",
-            "physical_drift_evaluated",
-            "claims_physical_calibration_certified",
-            "export_preview"
-          ],
-          "properties": {
-            "report_version": {
-              "const": "0.2.0"
+          "allOf": [
+            {
+              "$ref": "https://openrgd.org/schemas/rgd-calibration/0.2.0/passive-report"
             },
-            "model_id": {
-              "type": "string"
-            },
-            "coverage": {
-              "type": "object"
-            },
-            "parameters": {
-              "type": "array"
-            },
-            "findings": {
-              "type": "array"
-            },
-            "current_robot_position_observed": {
-              "const": false
-            },
-            "physical_drift_evaluated": {
-              "const": false
-            },
-            "claims_physical_calibration_certified": {
-              "const": false
-            },
-            "export_preview": {
-              "type": "null"
+            {
+              "type": "object",
+              "required": [
+                "profile_id",
+                "profile_state",
+                "profile_binding",
+                "export_preview"
+              ],
+              "properties": {
+                "profile_id": {
+                  "type": "null"
+                },
+                "profile_state": {
+                  "type": "null"
+                },
+                "profile_binding": {
+                  "const": "no_profile"
+                },
+                "export_preview": {
+                  "type": "null"
+                },
+                "coverage": {
+                  "properties": {
+                    "saved_evidence_fields": {
+                      "const": 0
+                    }
+                  }
+                },
+                "parameters": {
+                  "items": {
+                    "properties": {
+                      "stored_measurements": {
+                        "maxItems": 0
+                      },
+                      "coverage": {
+                        "enum": [
+                          "absent",
+                          "declared_only"
+                        ]
+                      }
+                    }
+                  }
+                }
+              }
             }
-          }
+          ]
         }
-      }
+      },
+      "additionalProperties": false
     }
   }
 }

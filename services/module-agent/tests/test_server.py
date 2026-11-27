@@ -1,5 +1,6 @@
 """Hermetic Module Agent tests; no GitHub, Cargo, devices or network downloads."""
 import copy
+import hashlib
 import io
 import zipfile
 import http.client
@@ -219,7 +220,7 @@ class AgentAPITests(unittest.TestCase):
                 'candidate_fields':0, 'declared_fields':0, 'saved_evidence_fields':0,
                 'without_saved_measurements':0, 'without_declared_values':0,
             },
-            'parameters': [], 'findings': [], 'source_digests': [{'role':'description','path':'spec/01_foundation/description.jsonc','raw_file_sha256':'sha256:' + 'f'*64}],
+            'parameters': [], 'findings': [], 'source_digests': [{'role':'description','path':'spec/01_foundation/description.jsonc','raw_file_sha256':'sha256:' + hashlib.sha256(b'{"meta_group":{"model_id_str":"synthetic_test"},"joint_topology_map":{}}').hexdigest()}],
             'profile_id': None, 'profile_state': None, 'profile_binding': 'no_profile',
         }
 
@@ -260,6 +261,75 @@ class AgentAPITests(unittest.TestCase):
         invalid['export_preview'] = {'applied': True}
         with self.assertRaises(InspectionError):
             validate_cal02_report(invalid)
+
+    def test_report_schema_and_route_context_are_strict(self):
+        from calibration_passive import InspectionError, validate_cal02_report
+        from calibration_contract import validate_report_schema
+        for key in ('profile_id', 'profile_state', 'export_preview', 'profile_binding'):
+            invalid = self.valid_report()
+            del invalid[key]
+            with self.assertRaises(InspectionError):
+                validate_cal02_report(invalid)
+        for patch in (
+            {'profile_id':'other'}, {'profile_state':'validated'}, {'profile_binding':'missing_context'},
+            {'export_preview':{}}, {'unexpected': True},
+            {'findings':[{'severity':'fatal'}]},
+        ):
+            invalid = self.valid_report()
+            invalid.update(patch)
+            with self.assertRaises(InspectionError):
+                validate_cal02_report(invalid)
+        # Exercise the actual owner Measurement $ref; schema-valid historical
+        # content is still forbidden on our no-profile route.
+        report = self.valid_report()
+        measurement = {'parameter_ref':'joint.x', 'kind':'observed', 'value':1.0,
+                       'unit':'rad', 'standard_uncertainty':0.1, 'evidence_ids':['e1']}
+        report['parameters'] = [{'parameter_ref':'joint.x','component_kind':'joint',
+            'component_id':'x','unit':'rad','nominal_ref':None,'nominal_value':None,
+            'declared_value':None,'stored_measurements':[measurement],'coverage':'saved_evidence'}]
+        report['coverage'].update(candidate_fields=1,saved_evidence_fields=1,without_declared_values=1)
+        validate_report_schema(report)
+        with self.assertRaises(InspectionError):
+            validate_cal02_report(report)
+        measurement['evidence_ids'] = ['e1','e1']
+        with self.assertRaises(ValueError):
+            validate_report_schema(report)
+
+    def test_agent_rejects_malformed_or_wrong_source_digests(self):
+        core.installed[('org.openrgd.calibration','0.2.0')] = 'ready'
+        for patch in (
+            {'raw_file_sha256':'garbage'}, {'raw_file_sha256':'sha256:'+'0'*64},
+            {'role':'calibration'}, {'path':'../description.jsonc'},
+            {'path':'spec/01_foundation/calibration.jsonc'},
+        ):
+            report = self.valid_report()
+            report['source_digests'][0].update(patch)
+            with mock.patch('calibration_passive.subprocess.run') as run:
+                run.return_value = types.SimpleNamespace(returncode=0, stdout=json.dumps(report).encode(), stderr=b'PRIVATE')
+                code, data = self.call('POST','/internal/v1/calibration/inspect', self.fake_zip(), binary=True)
+                self.assertEqual(code, 422)
+                self.assertNotIn('PRIVATE', str(data))
+        report = self.valid_report()
+        report['source_digests'] *= 2
+        with mock.patch('calibration_passive.subprocess.run') as run:
+            run.return_value = types.SimpleNamespace(returncode=0, stdout=json.dumps(report).encode(), stderr=b'')
+            self.assertEqual(self.call('POST','/internal/v1/calibration/inspect', self.fake_zip(), binary=True)[0],422)
+
+    def test_legacy_incompatible_source_is_not_rewritten_or_executed(self):
+        core.installed[('org.openrgd.calibration','0.2.0')] = 'ready'
+        for content in (b'{unquoted: 1}', b'{"a":1,"a":2}', b'{,}', b'{"a":NaN}',
+                        b'{"a":1 // CR-only\r,"b":2}'):
+            buffer = io.BytesIO()
+            with zipfile.ZipFile(buffer,'w') as out:
+                out.writestr('spec/01_foundation/description.jsonc', content)
+            blob = buffer.getvalue()
+            with mock.patch('calibration_passive.subprocess.run') as run:
+                code,data = self.call('POST','/internal/v1/calibration/inspect',blob,binary=True)
+                self.assertEqual(code,422)
+                self.assertIn('CAL_BUNDLE_SYNTAX',data['error'])
+                run.assert_not_called()
+            with zipfile.ZipFile(io.BytesIO(blob)) as zf:
+                self.assertEqual(zf.read('spec/01_foundation/description.jsonc'),content)
 
     def test_calibration_report_is_not_executable_without_user_request(self):
         core.installed[('org.openrgd.calibration', '0.2.0')] = 'ready'

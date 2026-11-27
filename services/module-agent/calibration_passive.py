@@ -8,8 +8,10 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import datetime, timezone
+import hashlib
+import hmac
 import io
-import json
+import re
 from pathlib import Path
 import stat
 import subprocess
@@ -19,6 +21,7 @@ from typing import Any
 import zipfile
 
 from rgd_registry import core as registry
+from calibration_contract import strict_json, validate_cal_source, validate_report_schema
 
 MODULE_ID = 'org.openrgd.calibration'
 MODULE_VERSION = '0.2.0'
@@ -42,6 +45,7 @@ class InspectionError(Exception):
 class SourceTree:
     root: Path
     extracted: tuple[str, ...]
+    digests: tuple[tuple[str, str, str], ...]
 
 
 def extract_foundation_zip(blob: bytes, folder: Path) -> SourceTree:
@@ -89,8 +93,13 @@ def extract_foundation_zip(blob: bytes, folder: Path) -> SourceTree:
         source_dir = folder / 'spec' / '01_foundation'
         source_dir.mkdir(parents=True, exist_ok=True)
         extracted = []
+        digests = []
         for filename in sorted(READABLE_FILES):
             location = base + filename
+            # This route is historically .jsonc-only. Do not hide a same-root
+            # .json sibling (or optional .json-only source) from the CAL parser.
+            if base + filename.removesuffix('.jsonc') + '.json' in names:
+                raise InspectionError('CAL_BUNDLE_LAYOUT: sorgente Foundation .json non supportata o ambigua')
             if location not in names:
                 continue
             entry = bundle.getinfo(location)
@@ -103,37 +112,71 @@ def extract_foundation_zip(blob: bytes, folder: Path) -> SourceTree:
                 raise InspectionError('Impossibile leggere un file JSONC') from exc
             if len(content) > MAX_SOURCE_BYTES:
                 raise InspectionError('File JSONC decompresso oltre il limite')
+            try:
+                validate_cal_source(content, legacy=True)
+            except (ValueError, UnicodeError, RecursionError) as exc:
+                raise InspectionError('CAL_BUNDLE_SYNTAX: sorgente non compatibile con CAL-0.2; lo ZIP originale non è stato modificato') from exc
             output = source_dir / filename
             # Chosen basename only; no arbitrary archive paths are ever written.
             with output.open('xb') as dest:
                 dest.write(content)
             extracted.append(filename)
+            digests.append((filename.removesuffix('.jsonc'), 'spec/01_foundation/' + filename,
+                            'sha256:' + hashlib.sha256(content).hexdigest()))
         if 'description.jsonc' not in extracted:
             raise InspectionError('Descrizione Foundation mancante')
-        return SourceTree(root=folder, extracted=tuple(extracted))
+        return SourceTree(root=folder, extracted=tuple(extracted), digests=tuple(digests))
 
 
-def validate_cal02_report(data: Any) -> dict[str, Any]:
-    if not isinstance(data, dict) or data.get('report_version') != '0.2.0':
-        raise InspectionError('Formato report Calibration non supportato')
-    if not isinstance(data.get('model_id'), str) or not data['model_id']:
-        raise InspectionError('Identità modello assente nel report')
-    for field in ('current_robot_position_observed', 'physical_drift_evaluated',
-                  'claims_physical_calibration_certified'):
-        if data.get(field) is not False:
-            raise InspectionError('Il report attribuisce indebitamente misurazioni fisiche')
-    if data.get('export_preview') is not None:
-        raise InspectionError('Delta preview non previsto per ispezione senza profile')
-    coverage = data.get('coverage')
-    expected = ('candidate_fields', 'declared_fields', 'saved_evidence_fields',
-                'without_saved_measurements', 'without_declared_values')
-    if not isinstance(coverage, dict) or any(type(coverage.get(k)) is not int or coverage[k] < 0 for k in expected):
-        raise InspectionError('Copertura CAL-0.2 malformata')
-    for key in ('parameters', 'findings', 'source_digests'):
-        if not isinstance(data.get(key), list):
-            raise InspectionError('Report CAL-0.2 incompleto')
-    if not data['source_digests']:
-        raise InspectionError('Report privo di provenienza dei file sorgente')
+def validate_cal02_report(data: Any, source: SourceTree | None = None) -> dict[str, Any]:
+    """Full owner schema, then the narrower Console no-profile route policy.
+
+    Calling without source is structural-only (used by offline consumers);
+    production inspect always supplies its actual extraction snapshot.
+    """
+    try:
+        validate_report_schema(data)
+    except ValueError as exc:
+        raise InspectionError('CAL_REPORT_SCHEMA_INVALID: report CAL-0.2 non conforme') from exc
+    if (data['profile_id'] is not None or data['profile_state'] is not None
+            or data['profile_binding'] != 'no_profile' or data['export_preview'] is not None):
+        raise InspectionError('CAL_REPORT_PROFILE_CONTEXT: profilo o delta non ammesso nella route passiva')
+    coverage = data['coverage']
+    params = data['parameters']
+    if (coverage['saved_evidence_fields'] != 0
+            or coverage['candidate_fields'] != len(params)
+            or coverage['without_saved_measurements'] != len(params)
+            or coverage['declared_fields'] + coverage['without_declared_values'] != len(params)
+            or any(p['stored_measurements'] or p['coverage'] == 'saved_evidence' for p in params)):
+        raise InspectionError('CAL_REPORT_PROFILE_CONTEXT: misure storiche o copertura incoerente senza profilo')
+    expected = {filename.removesuffix('.jsonc'): 'spec/01_foundation/' + filename
+                for filename in READABLE_FILES}
+    observed = {}
+    for item in data['source_digests']:
+        role, path, digest = item['role'], item['path'], item['raw_file_sha256']
+        if (role in observed or expected.get(role) != path
+                or re.fullmatch(r'sha256:[a-f0-9]{64}', digest) is None):
+            raise InspectionError('CAL_REPORT_SOURCE_MISMATCH: ruolo, percorso o digest sorgente non valido')
+        observed[role] = (path, digest)
+    if 'description' not in observed:
+        raise InspectionError('CAL_REPORT_SOURCE_MISMATCH: descrizione sorgente mancante')
+    if source is not None:
+        expected_digests = {role: (path, digest) for role, path, digest in source.digests}
+        if observed.keys() != expected_digests.keys():
+            raise InspectionError('CAL_REPORT_SOURCE_MISMATCH: insieme sorgenti diverso dai file estratti')
+        for role, (path, digest) in expected_digests.items():
+            observed_path, observed_digest = observed[role]
+            if observed_path != path or not hmac.compare_digest(digest, observed_digest):
+                raise InspectionError('CAL_REPORT_SOURCE_MISMATCH: digest diverso dai byte originali estratti')
+            # Only our allowlisted, private extraction paths are used for IO.
+            try:
+                file = source.root / path
+                if not stat.S_ISREG(file.lstat().st_mode) or file.stat().st_size > MAX_SOURCE_BYTES:
+                    raise OSError('Invalid private extraction')
+                if not hmac.compare_digest(digest, 'sha256:' + hashlib.sha256(file.read_bytes()).hexdigest()):
+                    raise OSError('Private extraction modified')
+            except OSError as exc:
+                raise InspectionError('CAL_REPORT_SOURCE_MISMATCH: snapshot privato non più corrispondente') from exc
     return data
 
 
@@ -160,6 +203,9 @@ class CalibrationInspector:
         try:
             resolved = registry.resolve_binary(MODULE_ID, version=MODULE_VERSION, prefix=self.prefix)
             binary = Path(resolved['binary'])
+            binary_digest = resolved.get('binary_sha256')
+            if not isinstance(binary_digest, str) or re.fullmatch(r'sha256:[a-f0-9]{64}', binary_digest) is None:
+                raise InspectionError('CAL_BINARY_DIGEST_INVALID: digest binario non valido')
             # Inspection executes an allowlisted binary only; no --profile,
             # --out, --model-hash or arbitrary CLI arguments are accepted.
             with tempfile.TemporaryDirectory(prefix='rgd-cal-passive-', dir='/tmp') as tmp:
@@ -176,18 +222,19 @@ class CalibrationInspector:
                 except OSError as exc:
                     raise InspectionError('Eseguibile Calibration non avviabile') from exc
                 if result.returncode != 0:
-                    raise InspectionError('Calibration inspect ha restituito un errore (vedere i log del Module Agent)')
+                    # Never relay arbitrary subprocess stderr or paths.
+                    raise InspectionError('CAL_INSPECT_FAILED: ispezione sorgente rifiutata da Calibration')
                 if not (0 < len(result.stdout) <= MAX_OUTPUT_BYTES):
                     raise InspectionError('Report Calibration vuoto o troppo grande')
                 try:
-                    report = validate_cal02_report(json.loads(result.stdout))
-                except (ValueError, UnicodeDecodeError) as exc:
-                    raise InspectionError('Risposta JSON Calibration non valida') from exc
+                    report = validate_cal02_report(strict_json(result.stdout), source)
+                except (ValueError, UnicodeError, RecursionError) as exc:
+                    raise InspectionError('CAL_REPORT_JSON_INVALID: risposta JSON Calibration non valida') from exc
                 return {
                     'inspection_contract': INSPECT_CONTRACT,
                     'module_id': MODULE_ID,
                     'module_version': MODULE_VERSION,
-                    'binary_sha256': resolved.get('binary_sha256'),
+                    'binary_sha256': binary_digest,
                     'generated_at': datetime.now(timezone.utc).isoformat(timespec='seconds'),
                     'extracted_sources': list(source.extracted),
                     'evidence_class': 'declared_profile_only_not_physical_observation',

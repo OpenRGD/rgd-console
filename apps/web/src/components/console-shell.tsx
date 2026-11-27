@@ -5,7 +5,7 @@ import { useState } from 'react';
 import {
   Activity, Box as BodyIcon, BrainCircuit, ChevronDown, CircleDot, Cpu,
   Database, Gauge, Layers3, LayoutDashboard, Menu, PanelLeftClose, RadioTower,
-  Settings2, ShieldCheck, FileUp, Monitor, Power, X,
+  Settings2, ShieldCheck, FileUp, Monitor, Power, X, Palette,
 } from 'lucide-react';
 import { SECTIONS, type SectionId } from '@/lib/navigation';
 import { useConsole } from '@/hooks/use-console';
@@ -34,7 +34,7 @@ function Navigation({ section, close }: { section: SectionId; close: () => void 
       const Icon = ICONS[item.id];
       return <Link key={item.id} href={`/${item.id}`} onClick={close} aria-current={item.id === section ? 'page' : undefined} className={`group flex items-center gap-3 rounded-xl px-3 py-3 text-[13px] font-medium transition-colors ${section === item.id ? 'border border-mint/15 bg-mint/10 text-mint' : 'border border-transparent text-slate-400 hover:bg-white/[.04] hover:text-slate-100'}`}><Icon size={18} strokeWidth={section === item.id ? 2.1 : 1.7} /><span className="flex-1">{item.label}</span>{section === item.id && <span className="h-1.5 w-1.5 rounded-full bg-mint" />}</Link>;
     })}</nav></div>
-    <div className="mt-auto space-y-4 p-4"><Link href="/boot" className="flex items-center gap-3 rounded-xl border border-mint/25 bg-mint/5 px-4 py-3 text-xs text-mint hover:bg-mint/10"><Power size={17} /> Boot &amp; Recovery</Link><div className="rounded-xl border border-line bg-[#0d1721] p-4"><div className="flex items-center gap-2 text-xs font-semibold text-mint"><ShieldCheck size={16} /> SAFETY BOUNDARY</div><p className="mt-2 text-[11px] leading-5 text-muted">Nessun endpoint di attuazione. Il controllo real-time resta fuori dalla Console.</p></div><div className="flex items-center justify-between px-3 pb-3 text-[10px] text-slate-500"><span>Foundation 0.4C</span><span className="font-mono">OFFLINE FIRST</span></div></div>
+    <div className="mt-auto space-y-4 p-4"><Link href="/visual-effects" className="flex items-center gap-3 rounded-xl border border-mint/20 px-4 py-3 text-xs text-mint"><Palette size={17}/> Visual Effects Studio</Link><Link href="/boot" className="flex items-center gap-3 rounded-xl border border-mint/25 bg-mint/5 px-4 py-3 text-xs text-mint hover:bg-mint/10"><Power size={17} /> Boot &amp; Recovery</Link><div className="rounded-xl border border-line bg-[#0d1721] p-4"><div className="flex items-center gap-2 text-xs font-semibold text-mint"><ShieldCheck size={16} /> SAFETY BOUNDARY</div><p className="mt-2 text-[11px] leading-5 text-muted">Nessun endpoint di attuazione. Il controllo real-time resta fuori dalla Console.</p></div><div className="flex items-center justify-between px-3 pb-3 text-[10px] text-slate-500"><span>Foundation 0.4C</span><span className="font-mono">OFFLINE FIRST</span></div></div>
   </div>;
 }
 

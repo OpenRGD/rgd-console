@@ -5,103 +5,20 @@ import { useEffect, useRef, useState } from 'react';
 import type { CSSProperties, ChangeEvent } from 'react';
 import {
   ArrowLeft, CircleDot, Download, Lightbulb, Plus, RotateCcw,
-  ShieldCheck, Sparkles, SlidersHorizontal, Volume2, BookOpen, Upload, Eye,
+  ShieldCheck, Sparkles, SlidersHorizontal, Volume2, Upload, Eye,
 } from 'lucide-react';
 import './visual-effects-studio.css';
 import { DEMO_EXPRESSION, EyeScreen, ExpressiveEyesStudio, validExpression } from './expressive-eyes';
 import type { EyeExpression } from './expressive-eyes';
 import { ExpressionCatalogManager } from './expression-catalog-manager';
 import { EyeCompositionPreview } from './eye-composition-preview';
-import paky01EyesPreset from '@/fixtures/paky01-eyes-v0.1.preview.json';
+import { createEmptyDraft,validCompleteDraft,validKey,type StudioProfile,type Zone,type LightEffect,type LightTarget,type EyeTarget,type Target } from '@/lib/visual-studio-profile';
+import { validPreviewRobot,parseVisualJson } from '@/lib/visual-json';
+import { VisualStatusPreview } from './visual-status-preview';
 
-type LightEffect = 'solid' | 'pulse' | 'chase' | 'wave';
-type Effect = LightEffect | 'eye_expression';
-type Binding = 'operator_reported' | 'planned';
-type Zone = { id: string; label: string; adapter_id: string | null; capabilities: Effect[]; binding_status: Binding };
-type LightTarget = { zone_id: string; effect: LightEffect; color: string; brightness: number };
-type EyeTarget = { zone_id: string; effect: 'eye_expression'; expression_id: string };
-type Target = LightTarget | EyeTarget;
-type Mapping = { source: string; event: string; scene: string; priority: number };
-type StudioProfile = {
-  schema_version: 'openrgd.visual-studio.profile.v0.2-candidate';
-  robot_id: string;
-  revision: number;
-  zones: Zone[];
-  scenes: Record<string, Target[]>;
-  expressions: Record<string, EyeExpression>;
-  mappings: Mapping[];
-  fallback_scene: string;
-  non_actuating: true;
-  preview_only: true;
-};
-type LegacyProfile = Omit<StudioProfile, 'schema_version' | 'expressions'> & {
-  schema_version: 'openrgd.visual-studio.profile.v0.1-candidate';
-};
-
-const STORAGE_KEY = 'openrgd.visual-studio.preview.v0.2';
-const OLD_STORAGE_KEY = 'openrgd.visual-studio.preview.v0.1';
-const storageForRobot = (id: 'paky-01' | 'paky-02') => STORAGE_KEY + '.' + id;
-type PreviewRobot = 'paky-01' | 'paky-02';
-const EXPRESSIVE_ZONE: Zone = {
-  id: 'expressive-eyes', label: 'Occhi · due mini display (futuri)',
-  adapter_id: null, capabilities: ['eye_expression'], binding_status: 'planned',
-};
-const EVENTS = [
-  { source: 'voice', event: 'listening.started', scene: 'listening', priority: 50 },
-  { source: 'voice', event: 'inference.started', scene: 'thinking', priority: 50 },
-  { source: 'voice', event: 'playback.started', scene: 'speaking', priority: 50 },
-  { source: 'voice', event: 'playback.ended', scene: 'idle', priority: 50 },
-  { source: 'voice', event: 'voice.error', scene: 'error', priority: 90 },
-  { source: 'voice', event: 'voice.ready', scene: 'idle', priority: 50 },
-  { source: 'system', event: 'operator.welcome', scene: 'welcome', priority: 10 },
-] satisfies Mapping[];
-
-const INITIAL: StudioProfile = {
-  schema_version: 'openrgd.visual-studio.profile.v0.2-candidate',
-  robot_id: 'paky-01',
-  revision: 1,
-  zones: [
-    { id: 'face-ring', label: 'Anello RGB · testa', adapter_id: 'miracles-star-ble', capabilities: ['solid'], binding_status: 'operator_reported' },
-    { id: 'room-lights', label: 'Luci ambiente · future', adapter_id: null, capabilities: ['solid', 'pulse'], binding_status: 'planned' },
-    EXPRESSIVE_ZONE,
-  ],
-  scenes: {
-    idle: [{ zone_id: 'face-ring', effect: 'solid', color: '#FFFFFF', brightness: 10 }],
-    listening: [{ zone_id: 'face-ring', effect: 'solid', color: '#0050FF', brightness: 35 }],
-    thinking: [{ zone_id: 'face-ring', effect: 'solid', color: '#9600FF', brightness: 35 }],
-    speaking: [{ zone_id: 'face-ring', effect: 'solid', color: '#00FF46', brightness: 35 }],
-    error: [{ zone_id: 'face-ring', effect: 'solid', color: '#FF0000', brightness: 30 }],
-    off: [{ zone_id: 'face-ring', effect: 'solid', color: '#000000', brightness: 0 }],
-    welcome: [
-      { zone_id: 'face-ring', effect: 'solid', color: '#40FAD2', brightness: 40 },
-      { zone_id: 'room-lights', effect: 'pulse', color: '#40FAD2', brightness: 30 },
-    ],
-  },
-  expressions: {},
-  mappings: EVENTS,
-  fallback_scene: 'idle',
-  non_actuating: true,
-  preview_only: true,
-};
-
-const PAKY02: StudioProfile = {
-  ...INITIAL,
-  robot_id: 'paky-02',
-  zones: INITIAL.zones.map(zone => ({
-    ...zone,
-    binding_status: 'planned',
-    adapter_id: null,
-  })),
-  scenes: {
-    ...INITIAL.scenes,
-    welcome: [
-      ...INITIAL.scenes.welcome,
-      { zone_id: EXPRESSIVE_ZONE.id, effect: 'eye_expression', expression_id: DEMO_EXPRESSION.expression_id },
-    ],
-  },
-  expressions: { [DEMO_EXPRESSION.expression_id]: DEMO_EXPRESSION },
-};
-const defaultsForRobot = (id: PreviewRobot): StudioProfile => id === 'paky-02' ? PAKY02 : INITIAL;
+const EYE_SERVICES = new Set(['boot','connecting','input_accepted','transcribing','awaiting_user','no_input','link_lost','rest']);
+const EYE_MAIN = new Set(['idle','listening','thinking','speaking','error','off']);
+const EXPRESSIVE_ZONE:Zone={id:'preview-eyes',label:'Occhi virtuali',adapter_id:null,capabilities:['eye_expression'],binding_status:'planned'};
 
 function isLightTarget(target: Target): target is LightTarget {
   return target.effect !== 'eye_expression';
@@ -109,154 +26,46 @@ function isLightTarget(target: Target): target is LightTarget {
 function sceneColor(target: LightTarget | undefined): string {
   return target?.brightness === 0 ? '#293442' : (target?.color ?? '#293442');
 }
-function validDraftBase(value: unknown): value is Record<string, unknown> {
-  if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
-  const c = value as Record<string, unknown>;
-  return (c.robot_id === 'paky-01' || c.robot_id === 'paky-02') && c.preview_only === true
-    && c.non_actuating === true && typeof c.revision === 'number'
-    && Number.isSafeInteger(c.revision) && c.revision >= 1
-    && Array.isArray(c.zones) && Array.isArray(c.mappings)
-    && c.scenes !== null && typeof c.scenes === 'object' && !Array.isArray(c.scenes);
-}
-function isLegacyDraft(value: unknown): value is LegacyProfile {
-  return validDraftBase(value) &&
-    value.schema_version === 'openrgd.visual-studio.profile.v0.1-candidate';
-}
-function isDraft(value: unknown): value is StudioProfile {
-  if (!validDraftBase(value) || value.schema_version !== INITIAL.schema_version) return false;
-  const expressions = value.expressions;
-  if (!expressions || typeof expressions !== 'object' || Array.isArray(expressions)) return false;
-  const catalog = expressions as Record<string, unknown>;
-  if (Object.keys(catalog).length > 32 ||
-    !Object.entries(catalog).every(([id, recipe]) =>
-      validExpression(recipe) && recipe.expression_id === id)) return false;
-  const scenes = value.scenes as Record<string, unknown>;
-  return Object.values(scenes).every(scene => Array.isArray(scene) && scene.length > 0 && scene.length <= 32 &&
-    scene.every((output: unknown) => {
-      if (!output || typeof output !== 'object' || Array.isArray(output)) return false;
-      const target = output as Record<string, unknown>;
-      if (target.effect === 'eye_expression') {
-        return Object.keys(target).sort().join(',') === 'effect,expression_id,zone_id' &&
-          typeof target.expression_id === 'string' && target.expression_id in catalog;
-      }
-      return ['solid','pulse','chase','wave'].includes(String(target.effect)) &&
-        typeof target.color === 'string' && /^#[0-9A-Fa-f]{6}$/.test(target.color) &&
-        typeof target.brightness === 'number' && Number.isInteger(target.brightness) &&
-        target.brightness >= 0 && target.brightness <= 100;
-    }));
-}
-
-const PAKY01_EYES_CANONICAL: unknown = paky01EyesPreset;
-const PAKY01_PRESET_SOURCE = 'italiarobotica/paky-01@92c26dd03c52bcec48b2e9906a395a414f2fc064';
-const EYE_SERVICES = new Set(['boot', 'connecting', 'input_accepted', 'transcribing', 'awaiting_user', 'no_input', 'link_lost', 'rest']);
-const EYE_MAIN = new Set(['idle', 'listening', 'thinking', 'speaking', 'error', 'off']);
-const validKey = (s: string) => /^[a-z][a-z0-9_-]{0,79}$/.test(s) && !['constructor','prototype','__proto__'].includes(s);
-const hasOwn = (obj: object, name: string) => Object.prototype.hasOwnProperty.call(obj, name);
-
-/** Import is only an untrusted browser draft, never a robot/runtime configuration. */
-function validCompleteDraft(value: unknown): value is StudioProfile {
-  if (!isDraft(value)) return false;
-  const p = value as StudioProfile;
-  if (Object.keys(p).sort().join('|') !== 'expressions|fallback_scene|mappings|non_actuating|preview_only|revision|robot_id|scenes|schema_version|zones') return false;
-  if (!Array.isArray(p.zones) || !p.zones.length || p.zones.length > 32) return false;
-  if (Object.keys(p.scenes).length < 1 || Object.keys(p.scenes).length > 64 || p.mappings.length > 128) return false;
-  const ids = new Set<string>();
-  for (const z of p.zones) {
-    if (!z || Object.keys(z).sort().join('|') !== 'adapter_id|binding_status|capabilities|id|label' ||
-      typeof z.id !== 'string' || !validKey(z.id) || ids.has(z.id) ||
-      typeof z.label !== 'string' || !z.label || z.label.length > 120 ||
-      !['planned','operator_reported'].includes(z.binding_status) ||
-      !Array.isArray(z.capabilities) || z.capabilities.length < 1 || z.capabilities.length > 12 ||
-      new Set(z.capabilities).size !== z.capabilities.length ||
-      z.capabilities.some(effect => !['solid','pulse','chase','wave','eye_expression'].includes(effect)) ||
-      (z.binding_status === 'planned' && z.adapter_id !== null) ||
-      (z.adapter_id !== null && (typeof z.adapter_id !== 'string' || !/^[a-z][a-z0-9._-]{0,99}$/.test(z.adapter_id)))) return false;
-    ids.add(z.id);
-  }
-  for (const [name, targets] of Object.entries(p.scenes)) {
-    if (!validKey(name) || !Array.isArray(targets) || !targets.length || targets.length > 32) return false;
-    const used = new Set<string>();
-    for (const t of targets) {
-      if (!t || !ids.has(t.zone_id) || used.has(t.zone_id)) return false;
-      used.add(t.zone_id);
-      const z = p.zones.find(zone => zone.id === t.zone_id);
-      if (!z?.capabilities.includes(t.effect)) return false;
-      if (t.effect === 'eye_expression') {
-        if (Object.keys(t).sort().join('|') !== 'effect|expression_id|zone_id' ||
-          !hasOwn(p.expressions, t.expression_id)) return false;
-      } else {
-        if (Object.keys(t).sort().join('|') !== 'brightness|color|effect|zone_id') return false;
-      }
-    }
-  }
-  if (!validKey(p.fallback_scene) || !hasOwn(p.scenes, p.fallback_scene)) return false;
-  if (Object.keys(p.expressions).some(id => !/^[a-z][a-z0-9_]{2,47}$/.test(id) || ['constructor','prototype'].includes(id))) return false;
-  const matches = new Set<string>();
-  for (const m of p.mappings) {
-    if (!m || Object.keys(m).sort().join('|') !== 'event|priority|scene|source' ||
-      typeof m.source !== 'string' || !validKey(m.source) ||
-      typeof m.event !== 'string' || !/^[a-z][a-z0-9._-]{0,99}$/.test(m.event) ||
-      !hasOwn(p.scenes,m.scene) || !Number.isInteger(m.priority) || m.priority < 0 || m.priority > 100) return false;
-    const token = m.source + ':' + m.event + ':' + m.priority;
-    if (matches.has(token)) return false;
-    matches.add(token);
-  }
-  return true;
-}
-
-function upgradeLegacyDraft(old: LegacyProfile): StudioProfile {
-  // The saved v0.1 user scene/rule data is preserved: no expression is
-  // silently assigned. Only a planned zone and empty catalog are added.
-  return {
-    ...old, schema_version: INITIAL.schema_version,
-    zones: old.zones.some(z => z.id === EXPRESSIVE_ZONE.id) ? old.zones : [...old.zones, EXPRESSIVE_ZONE],
-    expressions: {},
-  };
-}
-
 export function VisualEffectsStudio() {
-  const [profile, setProfile] = useState<StudioProfile>(INITIAL);
-  const [ruleIndex, setRuleIndex] = useState(2);
-  const [overrideScene, setOverrideScene] = useState<string | null>(null);
-  const [loaded, setLoaded] = useState(false);
-  const importFileRef = useRef<HTMLInputElement>(null);
-  const [message, setMessage] = useState('Nessuna luce reale viene comandata.');
+  const [robotId,setRobotId]=useState('preview-demo');
+  const [candidate,setCandidate]=useState('preview-demo');
+  const [error,setError]=useState('');
+  function selectScope(){
+    if(!validPreviewRobot(candidate)){setError('Identificatore non valido.');return;}
+    if(candidate===robotId)return;
+    if(!window.confirm('Cambiare profilo? Esporta prima le bozze non salvate. Nessun dispositivo sarà modificato.'))return;
+    setRobotId(candidate);setError('');
+  }
+  return <><div className="border-b border-line bg-[#0d1721] px-5 py-4">
+    <div className="mx-auto flex max-w-[1560px] flex-wrap items-end gap-3">
+      <label className="text-xs text-slate-300">Ambito anteprima (ID dichiarato, non autenticato)
+        <input value={candidate} maxLength={80} onChange={e=>setCandidate(e.target.value)} className="mt-2 block rounded-lg border border-line bg-[#111e2b] p-2 text-sm" />
+      </label>
+      <button type="button" onClick={selectScope} className="rounded-lg border border-mint/30 px-4 py-2 text-xs text-mint">Apri profilo</button>
+      <span className="text-xs text-muted">Nessuna connessione al robot · import/export esplicito</span>
+      {error&&<span role="alert" className="text-xs text-amber">{error}</span>}
+    </div>
+  </div><StudioWorkspace key={robotId} robotId={robotId}/></>;
+}
 
-  useEffect(() => {
-    try {
-      const saved = localStorage.getItem(storageForRobot('paky-01')) || localStorage.getItem(STORAGE_KEY);
-      if (saved) {
-        const parsed: unknown = JSON.parse(saved);
-        if (isDraft(parsed) && parsed.robot_id === 'paky-01') setProfile(parsed);
-      } else {
-        const legacy = localStorage.getItem(OLD_STORAGE_KEY);
-        if (legacy) {
-          const parsed: unknown = JSON.parse(legacy);
-          if (isLegacyDraft(parsed) && parsed.robot_id === 'paky-01') setProfile(upgradeLegacyDraft(parsed));
-        }
-      }
-    } catch {
-      // Invalid local draft never becomes a runtime config.
-    }
-    setLoaded(true);
-  }, []);
-
-  useEffect(() => {
-    if (!loaded) return;
-    try { localStorage.setItem(storageForRobot(profile.robot_id as PreviewRobot), JSON.stringify(profile)); } catch {
-      // Browser storage is optional. Profile can still be exported.
-    }
-  }, [loaded, profile]);
+function StudioWorkspace({robotId}:{robotId:string}) {
+  const [profile,setProfile]=useState<StudioProfile>(()=>createEmptyDraft(robotId));
+  const [ruleIndex,setRuleIndex]=useState(0);
+  const [overrideScene,setOverrideScene]=useState<string|null>(null);
+  const importFileRef=useRef<HTMLInputElement>(null);
+  const revision=useRef(0);
+  const [message,setMessage]=useState('Bozza sintetica in memoria. Importa un profilo esplicito o crea una ricetta.');
+  useEffect(()=>()=>{revision.current+=1;},[]);
 
   const selectedRule = profile.mappings[ruleIndex] ?? profile.mappings[0];
   const activeScene = overrideScene && profile.scenes[overrideScene] ? overrideScene :
     (profile.scenes[selectedRule?.scene] ? selectedRule.scene : profile.fallback_scene);
   const targets = profile.scenes[activeScene] ?? [];
-  const face = targets.find((target): target is LightTarget => target.zone_id === 'face-ring' && isLightTarget(target));
+  const face = targets.find(isLightTarget);
   const eyesTarget = targets.find((target): target is EyeTarget => target.effect === 'eye_expression');
   const activeEyeExpression = eyesTarget ? profile.expressions[eyesTarget.expression_id] : undefined;
   const activeEffects = targets.map(target => target.effect);
-  const ringStyle = { '--ve-color': sceneColor(face), opacity: face ? Math.max(0.16, face.brightness / 100) : 0.2 } as CSSProperties;
+  const ringStyle = { '--ve-color': sceneColor(face), opacity: face ? face.brightness / 100 : 0 } as CSSProperties;
 
   const replaceTargets = (next: Target[]) => setProfile(p => ({ ...p, scenes: { ...p.scenes, [activeScene]: next } }));
 
@@ -265,7 +74,7 @@ export function VisualEffectsStudio() {
       { ...item, ...patch } : item));
   }
   function chooseExpression(zoneId: string, expressionId: string) {
-    if (!(expressionId in profile.expressions)) return;
+    if (!Object.hasOwn(profile.expressions,expressionId)) return;
     replaceTargets(targets.map(item => item.zone_id === zoneId && item.effect === 'eye_expression' ?
       { ...item, expression_id: expressionId } : item));
   }
@@ -278,7 +87,10 @@ export function VisualEffectsStudio() {
       }
       replaceTargets(targets.filter(target => target.zone_id !== zoneId));
     } else {
-      if (zoneId === EXPRESSIVE_ZONE.id) {
+      const zone=profile.zones.find(z=>z.id===zoneId);
+      if(!zone)return;
+      const light=zone.capabilities.find((e):e is LightEffect=>e!=='eye_expression');
+      if (!light && zone.capabilities.includes('eye_expression')) {
         const expressionId = Object.keys(profile.expressions)[0];
         if (!expressionId) {
           setMessage('Crea prima un’espressione nell’editor degli occhi, poi associane la zona.');
@@ -286,7 +98,7 @@ export function VisualEffectsStudio() {
         }
         replaceTargets([...targets, { zone_id: zoneId, effect: 'eye_expression', expression_id: expressionId }]);
       } else {
-        replaceTargets([...targets, { zone_id: zoneId, effect: 'solid', color: '#40FAD2', brightness: 25 }]);
+        if(light)replaceTargets([...targets, { zone_id: zoneId, effect: light, color: '#808080', brightness: 20 }]);
       }
     }
   }
@@ -296,26 +108,29 @@ export function VisualEffectsStudio() {
       setMessage('Ricetta espressiva non valida: nessuna modifica alla bozza.');
       return;
     }
-    if (!(expression.expression_id in profile.expressions) && Object.keys(profile.expressions).length >= 32) {
+    if (!Object.hasOwn(profile.expressions,expression.expression_id) && Object.keys(profile.expressions).length >= 32) {
       setMessage('Catalogo pieno (massimo 32 espressioni per questa bozza).');
       return;
     }
+    const eyeZone=profile.zones.find(z=>z.capabilities.includes('eye_expression'));
+    if(!eyeZone && (profile.zones.length>=32 || profile.zones.some(z=>z.id===EXPRESSIVE_ZONE.id))){setMessage('Serve una zona occhi compatibile.');return;}
+    const zone=eyeZone??EXPRESSIVE_ZONE;
     const previous = profile.expressions[expression.expression_id];
     if (previous && JSON.stringify(previous) !== JSON.stringify(expression) &&
         !window.confirm('Esiste già ' + expression.expression_id + '. Sostituire la ricetta nella bozza? Le scene che la referenziano cambieranno in anteprima.')) return;
     setProfile(current => {
       const sceneTargets = current.scenes[activeScene] ?? [];
       const newEyeTarget: EyeTarget = {
-        zone_id: EXPRESSIVE_ZONE.id, effect: 'eye_expression',
+        zone_id: zone.id, effect: 'eye_expression',
         expression_id: expression.expression_id,
       };
-      const nextScene = sceneTargets.some(t => t.zone_id === EXPRESSIVE_ZONE.id)
-        ? sceneTargets.map(t => t.zone_id === EXPRESSIVE_ZONE.id ? newEyeTarget : t)
+      const nextScene = sceneTargets.some(t => t.zone_id === zone.id)
+        ? sceneTargets.map(t => t.zone_id === zone.id ? newEyeTarget : t)
         : [...sceneTargets, newEyeTarget];
       return {
         ...current,
         expressions: { ...current.expressions, [expression.expression_id]: expression },
-        zones: current.zones.some(z => z.id === EXPRESSIVE_ZONE.id) ? current.zones : [...current.zones, EXPRESSIVE_ZONE],
+        zones: current.zones.some(z => z.id === zone.id) ? current.zones : [...current.zones, zone],
         scenes: { ...current.scenes, [activeScene]: nextScene },
       };
     });
@@ -330,12 +145,13 @@ export function VisualEffectsStudio() {
   function createScene() {
     const name = window.prompt('Identificatore della nuova scena (es. greeting, charging):');
     if (name === null) return;
-    if (!/^[a-z][a-z0-9_-]{0,79}$/.test(name) || profile.scenes[name]) {
+    if (!validKey(name) || Object.hasOwn(profile.scenes,name)) {
       setMessage('Identificatore non valido oppure scena già presente.');
       return;
     }
     if (Object.keys(profile.scenes).length >= 64) return;
-    setProfile(p => ({ ...p, scenes: { ...p.scenes, [name]: [{ zone_id: 'face-ring', effect: 'solid', color: '#40FAD2', brightness: 25 }] } }));
+    // Copy the selected scene, including its declared capabilities; no invented zone.
+    setProfile(p=>({...p,scenes:{...p.scenes,[name]:targets.map(t=>({...t}))}}));
     setOverrideScene(name);
     setMessage('Nuova scena creata nella bozza locale.');
   }
@@ -360,58 +176,25 @@ export function VisualEffectsStudio() {
     setMessage('Regola aggiunta alla bozza. Nessun evento esterno è stato sottoscritto.');
   }
 
-  function reset() {
-    if (!window.confirm('Ripristinare soltanto la bozza del browser? Nessun dispositivo sarà modificato.')) return;
-    localStorage.removeItem(storageForRobot(profile.robot_id as PreviewRobot));
-    if (profile.robot_id === 'paky-01') {
-      localStorage.removeItem(STORAGE_KEY);
-      localStorage.removeItem(OLD_STORAGE_KEY);
-    }
-    setProfile(defaultsForRobot(profile.robot_id as PreviewRobot));
-    setRuleIndex(2);
-    setOverrideScene(null);
-    setMessage('Bozza locale ripristinata.');
-  }
-
-  function selectPreviewRobot(robotId: PreviewRobot) {
-    if (profile.robot_id === robotId) return;
-    let next = defaultsForRobot(robotId);
-    try {
-      const saved = localStorage.getItem(storageForRobot(robotId));
-      if (saved) {
-        const parsed: unknown = JSON.parse(saved);
-        if (isDraft(parsed) && parsed.robot_id === robotId) next = parsed;
-      }
-    } catch { /* Malformed browser drafts cannot affect the robot. */ }
-    setProfile(next);
-    setRuleIndex(2);
-    setOverrideScene(null);
-    setMessage('Profilo virtuale ' + robotId + ' selezionato. I cataloghi restano separati e nessuna configurazione del robot è stata modificata.');
-  }
-
-
-  function applyPaky01Preset() {
-    if (profile.robot_id !== 'paky-01' || !validCompleteDraft(PAKY01_EYES_CANONICAL) ||
-      PAKY01_EYES_CANONICAL.robot_id !== 'paky-01') {
-      setMessage('Preset Paky-01 non valido o profilo robot errato: nessuna modifica.');
-      return;
-    }
-    if (!window.confirm('Caricare le 21 ricette Occhi v0.1 e sostituire la bozza locale Paky-01? Esporta prima eventuali modifiche. Nessun robot sarà modificato.')) return;
-    setProfile(JSON.parse(JSON.stringify(PAKY01_EYES_CANONICAL)) as StudioProfile);
-    setRuleIndex(0);
-    setOverrideScene('idle');
-    setMessage('Occhi v0.1 caricati SOLO nella bozza del browser: 21 scene, 21 ricette e 27 regole. Nessun hardware è stato comandato.');
+  function reset(){
+    if(!window.confirm('Ripristinare soltanto la bozza in memoria? Esporta prima eventuali modifiche.'))return;
+    revision.current+=1;
+    setProfile(createEmptyDraft(robotId));setRuleIndex(0);setOverrideScene(null);
+    setMessage('Bozza sintetica ripristinata. Nessun archivio esistente è stato cancellato.');
   }
 
   async function importDraftFile(event: ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
     event.target.value = '';
     if (!file) return;
+    const request=++revision.current;
     if (file.size > 128 * 1024 || file.size === 0) {
       setMessage('Import rifiutato: file JSON vuoto o oltre 128 KiB.'); return;
     }
     try {
-      const parsed: unknown = JSON.parse(await file.text());
+      const raw=await file.text();
+      if(request!==revision.current)return;
+      const parsed:unknown=parseVisualJson(raw,128*1024);
       if (!validCompleteDraft(parsed) || parsed.robot_id !== profile.robot_id) {
         setMessage('Import rifiutato: contratto non valido o profilo destinato a un altro robot.'); return;
       }
@@ -422,12 +205,15 @@ export function VisualEffectsStudio() {
       setOverrideScene(null);
       setMessage('Profilo JSON importato nella bozza di ' + profile.robot_id + '. Nessuna modifica a servizi o dispositivi.');
     } catch {
+      if(request!==revision.current)return;
       setMessage('Impossibile leggere il JSON: nessuna modifica alla bozza.');
     }
   }
 
   function exportDraft() {
-    const data = JSON.stringify({ ...profile, revision: profile.revision + 1 }, null, 2) + '\n';
+    if(!validCompleteDraft(profile)){setMessage('Bozza non valida: correggi prima di esportare.');return;}
+    const data = JSON.stringify(profile, null, 2) + '\n';
+    if(new TextEncoder().encode(data).length>128*1024){setMessage('Bozza oltre 128 KiB.');return;}
     const blob = new Blob([data], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
@@ -474,11 +260,8 @@ export function VisualEffectsStudio() {
 
       <div className="mb-7 grid gap-3 sm:grid-cols-3">
         <div className="panel p-4"><label className="eyebrow" htmlFor="visual-preview-robot">ROBOT / PROFILO</label>
-          <select id="visual-preview-robot" className="mt-2 w-full bg-transparent text-sm font-semibold text-white"
-            value={profile.robot_id} onChange={event => selectPreviewRobot(event.target.value as PreviewRobot)}>
-            <option className="bg-[#101a26]" value="paky-01">Paky-01 · LED reale, preview occhi</option>
-            <option className="bg-[#101a26]" value="paky-02">Paky-02 · tutto simulato</option>
-          </select></div>
+          <div id="visual-preview-robot" className="mt-2 break-all font-mono text-sm">{robotId}</div>
+          <p className="mt-1 text-[11px] text-muted">Bozza in memoria, non configurazione attiva.</p></div>
         <div className="panel p-4"><div className="eyebrow">REGOLE D'EVENTO</div><div className="mt-2 text-xl font-semibold">{profile.mappings.length}</div></div>
         <div className="panel p-4"><div className="eyebrow">ZONE &amp; REPERTORIO</div><div className="mt-2 text-xl font-semibold">{profile.zones.length} <span className="text-xs font-normal text-muted">zone · {Object.keys(profile.expressions).length} espressioni in bozza</span></div></div>
       </div>
@@ -487,14 +270,10 @@ export function VisualEffectsStudio() {
       <section className="panel mb-7 overflow-hidden" aria-label="Repertorio Occhi e profili locali">
         <div className="flex flex-wrap items-center justify-between gap-4 border-b border-line px-5 py-4">
           <div>
-            <h2 className="flex items-center gap-2 text-sm font-semibold"><Eye size={17} className="text-mint"/> Repertorio Occhi · Paky-01 v0.1</h2>
-            <p className="mt-1 text-[11px] text-muted">Preset verificato dalla specifica di macchina · 21 ricette, 21 scene, 27 associazioni.</p>
+            <h2 className="flex items-center gap-2 text-sm font-semibold"><Eye size={17} className="text-mint"/> Profili e repertori · import esplicito</h2>
+            <p className="mt-1 text-[11px] text-muted">Il catalogo appartiene al profilo scelto. Nessun preset di macchina incorporato.</p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
-            {profile.robot_id === 'paky-01' &&
-              <button type="button" onClick={applyPaky01Preset} className="rounded-lg border border-mint/30 bg-mint/10 px-3 py-2 text-xs font-semibold text-mint hover:bg-mint/20">
-                <BookOpen size={14} className="mr-1 inline"/> Carica prototipo Paky-01 v0.1
-              </button>}
             <button type="button" onClick={() => importFileRef.current?.click()} className="rounded-lg border border-line px-3 py-2 text-xs text-slate-200 hover:bg-white/5">
               <Upload size={14} className="mr-1 inline"/> Importa profilo JSON OpenRGD
             </button>
@@ -503,10 +282,9 @@ export function VisualEffectsStudio() {
           </div>
         </div>
         <div className="flex flex-wrap items-center justify-between gap-3 px-5 py-3 text-[11px] text-muted">
-          <p>Il repertorio universale appartiene a rgd-visual-feedback: genera il profilo con eye_pack_preview.py --robot-id {profile.robot_id} e importalo come JSON. L'esempio Paky-01 è un prototipo storico, non un secondo catalogo canonico. Esporta le bozze prima di sostituirle.</p>
-          <a href="https://github.com/italiarobotica/paky-01/pull/7" target="_blank" rel="noopener noreferrer" className="shrink-0 font-semibold text-mint hover:underline">Specifica originale ↗</a>
+          <p>Il repertorio universale appartiene a rgd-visual-feedback: esporta un profilo con eye_pack_preview.py --robot-id {robotId}, oppure importa un profilo candidato dalla repository dell’istanza. Esporta le bozze prima di sostituirle. Nessun salvataggio automatico del profilo.</p>
+          <a href="https://github.com/OpenRGD/rgd-visual-feedback" target="_blank" rel="noopener noreferrer" className="shrink-0 font-semibold text-mint hover:underline">Owner Visual ↗</a>
         </div>
-        {profile.robot_id === 'paky-01' && <p className="px-5 pb-3 font-mono text-[10px] text-slate-500">Fonte fissata: {PAKY01_PRESET_SOURCE}</p>}
       </section>
 
       {Object.keys(profile.expressions).length > 0 && <section className="panel mb-7 p-5" aria-label="Catalogo rapido espressioni occhi">
@@ -553,7 +331,7 @@ export function VisualEffectsStudio() {
           <div className="flex items-center justify-between border-b border-line p-5"><div><h2 className="text-sm font-semibold">2 · Scene &amp; comportamenti</h2><p className="mt-1 text-xs text-muted">LED, display espressivi e catalogo di ricette</p></div><SlidersHorizontal className="text-mint" size={19}/></div>
           <div className="space-y-5 p-5">
             <label className="block text-xs text-slate-400">Scena assegnata all’evento
-              <select className="mt-2 w-full rounded-xl border border-line bg-[#111e2b] p-3 text-sm text-white outline-none focus:border-mint" value={selectedRule?.scene ?? profile.fallback_scene} onChange={e => setRuleScene(e.target.value)}>
+              <select className="mt-2 w-full rounded-xl border border-line bg-[#111e2b] p-3 text-sm text-white outline-none focus:border-mint" disabled={!selectedRule} value={selectedRule?.scene ?? profile.fallback_scene} onChange={e => setRuleScene(e.target.value)}>
                 {Object.keys(profile.scenes).map(name => <option value={name} key={name}>{name}</option>)}
               </select>
             </label>
@@ -588,7 +366,7 @@ export function VisualEffectsStudio() {
                       <label className="text-[11px] text-muted">Effetto
                         <select value={target.effect} onChange={e => updateLightTarget(zone.id, { effect: e.target.value as LightEffect })}
                           className="mt-1 h-10 w-full rounded-lg border border-line bg-[#182636] px-2 text-xs text-white">
-                          {(['solid','pulse','chase','wave'] as const).map(effect =>
+                          {zone.capabilities.filter(effect=>effect!=='eye_expression').map(effect =>
                             <option key={effect} value={effect}>{effect}</option>)}
                         </select>
                       </label>
@@ -641,10 +419,11 @@ export function VisualEffectsStudio() {
         selectedSceneExpression={activeEyeExpression} currentSceneLabel={activeScene}/></div>
       <div className="mt-8"><ExpressionCatalogManager key={profile.robot_id} robotId={profile.robot_id}/></div>
       <div className="mt-8"><EyeCompositionPreview key={profile.robot_id} robotId={profile.robot_id}/></div>
+      <div className="mt-8"><VisualStatusPreview/></div>
       <p role="status" className="mt-6 text-xs text-slate-400">{message}</p>
       <div className="mt-8 rounded-xl border border-line bg-[#0e1823] p-5 text-xs leading-6 text-muted">
         <p className="mb-1 flex items-center gap-2 font-semibold text-mint"><ShieldCheck size={15}/> Confine architetturale</p>
-        <p>Questo Studio è un editor locale di profili candidati. La distribuzione su Paky-01 richiederà validazione del contratto, autorizzazione esplicita, controllo capacità e un host adapter separato. La Console non apre dispositivi, non controlla i motori e non certifica la luce emessa.</p>
+        <p>Questo Studio è un editor locale di profili candidati. La distribuzione su un robot richiederà validazione del contratto, autorizzazione esplicita, controllo capacità e un host adapter separato. La Console non apre dispositivi, non controlla i motori e non certifica la luce emessa.</p>
       </div>
     </main>
   </div>;

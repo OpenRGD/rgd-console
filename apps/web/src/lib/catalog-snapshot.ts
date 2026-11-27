@@ -1,6 +1,6 @@
 /** VISUAL-0.2D read-only snapshot inspection. Not cryptographic attestation. */
-import { validExpression } from '@/components/expressive-eyes';
-import type { EyeExpression } from '@/components/expressive-eyes';
+import { validExpression } from './visual-expression.ts';
+import type { EyeExpression } from './visual-expression.ts';
 
 export type CatalogRevision = {
   schema_version: 'openrgd.visual.catalog-revision.v0.1-candidate';
@@ -105,7 +105,7 @@ function proposalItem(x: unknown, robot: string, histories: Map<string,CatalogRe
     'approval_revision','expression',
   ]) || typeof x.proposal_id !== 'string' || !HEX32.test(x.proposal_id) ||
     !ident(x.expression_id) || (x.source_kind !== 'operator' && x.source_kind !== 'cognitive_proposal') ||
-    !['pending','approved','rejected'].includes(String(x.status)) ||
+    !['pending','approved','rejected'].includes(x.status as string) ||
     !date(x.submitted_at_utc) || !validExpression(x.expression) ||
     x.expression.expression_id !== x.expression_id || x.expression.origin !== x.source_kind) return false;
   if (x.status !== 'approved') return x.approval_revision === null;

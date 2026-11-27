@@ -3,8 +3,8 @@
  * This is NOT the composition policy engine and not an evidence verifier.
  * It permits only explicitly non-actuating synthetic operator previews.
  */
-import { validExpression } from '@/components/expressive-eyes';
-import type { EyeExpression } from '@/components/expressive-eyes';
+import { validExpression } from './visual-expression.ts';
+import type { EyeExpression } from './visual-expression.ts';
 
 export const MAX_COMPOSITION_FILE = 64 * 1024;
 const ROBOT = /^[a-z0-9][a-z0-9_-]{0,79}$/;
@@ -27,6 +27,25 @@ function exact(v: unknown, keys: string[]): v is Record<string, unknown> {
 }
 const isInt=(x:unknown)=>typeof x==='number' && Number.isSafeInteger(x);
 const isPhase=(x:unknown)=>typeof x==='string' && PHASES.has(x);
+const within=(x:unknown,a:number,b:number)=>typeof x==='number'&&Number.isFinite(x)&&x>=a&&x<=b;
+function validFramePlan(value:unknown,expr:EyeExpression):boolean{
+  if(!exact(value,['schema_version','expression_id','label','robot_identity_claim','emotion_internal_state_verified','source_kind','eye_frames','accent_ring_intent','palette','animation','duration_ms','hardware_commands_sent','physical_output_observed','preview_only','non_actuating']))return false;
+  if(value.schema_version!=='openrgd.visual.eye-frame-plan.v0.1-candidate'||value.expression_id!==expr.expression_id||
+     value.label!==expr.label||value.robot_identity_claim!==null||value.emotion_internal_state_verified!==false||
+     value.source_kind!==expr.origin||value.hardware_commands_sent!==false||value.physical_output_observed!==false||
+     value.preview_only!==true||value.non_actuating!==true||value.duration_ms!==expr.duration_ms)return false;
+  if(!exact(value.eye_frames,['left','right']))return false;
+  for(const frame of [value.eye_frames.left,value.eye_frames.right]){
+    if(!exact(frame,['eye_shape','openness','iris_radius_normalized','gaze_x_normalized','gaze_y_normalized','brow_tilt_deg','applied'])||
+       frame.eye_shape!=='ellipse'||frame.applied!==false||!within(frame.openness,.12,1)||
+       !within(frame.iris_radius_normalized,.114,.266)||!within(frame.gaze_x_normalized,-.6,.6)||
+       !within(frame.gaze_y_normalized,-.6,.6)||!within(frame.brow_tilt_deg,-20,20))return false;
+  }
+  const a=value.accent_ring_intent,p=value.palette,anim=value.animation;
+  return exact(a,['color','brightness_pct','applied'])&&a.color===expr.palette.accent.toUpperCase()&&a.brightness_pct===expr.palette.ring_brightness_pct&&a.applied===false&&
+    exact(p,['background','iris'])&&p.background===expr.palette.background.toUpperCase()&&p.iris===expr.palette.iris.toUpperCase()&&
+    exact(anim,['mode','blink_interval_ms','blink_duration_ms'])&&anim.mode===expr.animation.mode&&anim.blink_interval_ms===expr.animation.blink_interval_ms&&anim.blink_duration_ms===expr.animation.blink_duration_ms;
+}
 
 export type CompositionResult = {
   schema_version: 'openrgd.visual.eye-compose-result.v0.1-candidate';
@@ -73,9 +92,9 @@ export function parseCompositionResult(input: unknown, expectedRobot: string): C
     typeof input.voice_sample_current !== 'boolean' ||
     typeof input.eyes_disabled !== 'boolean' ||
     typeof input.blank_pixels_intent !== 'boolean') throw new Error('Stati di composizione non validi.');
-  if (!['ready','connecting','lost'].includes(String(input.display_link_state)) ||
-    !['disabled','monitoring','capturing','unknown'].includes(String(input.microphone_state)) ||
-    !GESTURE_STATUS.has(String(input.gesture_status)) || !GAZE.has(String(input.gaze_status)))
+  if (!['ready','connecting','lost'].includes(input.display_link_state as string) ||
+    !['disabled','monitoring','capturing','unknown'].includes(input.microphone_state as string) ||
+    !GESTURE_STATUS.has(input.gesture_status as string) || !GAZE.has(input.gaze_status as string))
     throw new Error('Stato periferica o indicatore non valido.');
   if (input.eyes_disabled && (input.eyes_scene !== 'off' || input.blank_pixels_intent !== true))
     throw new Error('Output occhi disabilitato ma non rappresentato come blank.');
@@ -90,7 +109,7 @@ export function parseCompositionResult(input: unknown, expectedRobot: string): C
     input.ring_intent.applied !== false) throw new Error('Ring intent non valido.');
   if (input.social_overlay !== null) {
     if (!exact(input.social_overlay,['scene','gesture_id','remaining_ms']) ||
-      !SOCIAL.has(String(input.social_overlay.scene)) ||
+      !SOCIAL.has(input.social_overlay.scene as string) ||
       typeof input.social_overlay.gesture_id !== 'string' || !GESTURE.test(input.social_overlay.gesture_id) ||
       !isInt(input.social_overlay.remaining_ms) ||
       (input.social_overlay.remaining_ms as number) <= 0 ||
@@ -100,14 +119,7 @@ export function parseCompositionResult(input: unknown, expectedRobot: string): C
     throw new Error('Overlay dichiarato visibile ma assente.');
   }
   if (!validExpression(input.expression)) throw new Error('Ricetta composta non valida.');
-  if (!object(input.eye_frame_plan) ||
-    input.eye_frame_plan.schema_version !== 'openrgd.visual.eye-frame-plan.v0.1-candidate' ||
-    input.eye_frame_plan.expression_id !== input.expression.expression_id ||
-    input.eye_frame_plan.preview_only !== true ||
-    input.eye_frame_plan.non_actuating !== true ||
-    input.eye_frame_plan.hardware_commands_sent !== false ||
-    input.eye_frame_plan.physical_output_observed !== false)
-    throw new Error('Piano occhi non valido.');
+  if (!validFramePlan(input.eye_frame_plan,input.expression)) throw new Error('Piano occhi non valido.');
   if (!Array.isArray(input.reasons) || input.reasons.length > 20 ||
     !input.reasons.every(x=>typeof x==='string' && /^[a-z][a-z0-9_]{0,79}$/.test(x)))
     throw new Error('Motivi della composizione non validi.');

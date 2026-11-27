@@ -1,6 +1,7 @@
 'use client';
 
-import { useRef, useState } from 'react';
+import { useEffect,useRef, useState } from 'react';
+import { parseVisualJson } from '@/lib/visual-json';
 import type { ChangeEvent, CSSProperties } from 'react';
 import { Eye, FileJson, LockKeyhole, ShieldCheck, Upload } from 'lucide-react';
 import { EyeScreen } from './expressive-eyes';
@@ -11,6 +12,8 @@ import type { CompositionResult } from '@/lib/eye-composition-result';
  * policy engine. It has no network, catalog writes, or device bindings. */
 export function EyeCompositionPreview({ robotId }: { robotId: string }) {
   const ref = useRef<HTMLInputElement>(null);
+  const revision=useRef(0);
+  useEffect(()=>()=>{revision.current+=1;},[]);
   const [data,setData] = useState<CompositionResult | null>(null);
   const [filename,setFilename] = useState('');
   const [error,setError] = useState('');
@@ -18,24 +21,28 @@ export function EyeCompositionPreview({ robotId }: { robotId: string }) {
     const file=event.target.files?.[0];
     event.target.value='';
     if (!file) return;
+    const request=++revision.current;
     try {
       if (file.size <= 0 || file.size > MAX_COMPOSITION_FILE)
         throw new Error('File JSON vuoto o oltre 64 KiB.');
-      const loaded: unknown=JSON.parse(await file.text());
+      const raw=await file.text();
+      if(request!==revision.current)return;
+      const loaded=parseVisualJson(raw,MAX_COMPOSITION_FILE);
       const result=parseCompositionResult(loaded,robotId);
       setData(result);
       setFilename(file.name.slice(0,80));
       setError('');
     } catch(e) {
+      if(request!==revision.current)return;
       setData(null);
       setFilename('');
-      setError(e instanceof Error?e.message:'Impossibile leggere l’anteprima.');
+      setError('Composizione rifiutata: formato o profilo non valido.');
     }
   };
 
   const style = {
     '--ve-color':data?.ring_intent.color ?? '#223244',
-    opacity:data?Math.max(0.16,data.ring_intent.brightness/100):0.2,
+    opacity:data?data.ring_intent.brightness/100:0.2,
   } as CSSProperties;
 
   return <section className="panel overflow-hidden" aria-label="Eye Composition Preview">
@@ -65,7 +72,7 @@ export function EyeCompositionPreview({ robotId }: { robotId: string }) {
         <button type="button" onClick={()=>ref.current?.click()} className="inline-flex items-center gap-2 rounded-lg border border-mint/40 bg-mint/10 px-4 py-2 text-xs font-semibold text-mint">
           <Upload size={15}/> Importa composizione JSON
         </button>
-        {data && <button type="button" onClick={()=>{setData(null);setFilename('');}} className="rounded-lg border border-line px-3 py-2 text-xs">
+        {data && <button type="button" onClick={()=>{revision.current+=1;setData(null);setFilename('');}} className="rounded-lg border border-line px-3 py-2 text-xs">
           Chiudi anteprima
         </button>}
         {filename && <span className="inline-flex items-center gap-2 text-xs text-muted"><FileJson size={14}/>{filename}</span>}

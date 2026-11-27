@@ -1,6 +1,7 @@
 'use client';
 
-import { useRef, useState } from 'react';
+import { useEffect,useRef, useState } from 'react';
+import { parseVisualJson } from '@/lib/visual-json';
 import {
   ArrowLeftRight, BookOpen, CheckCircle2, Clock3, FileJson,
   FileWarning, GitCompareArrows, LockKeyhole, ShieldCheck, Upload,
@@ -96,6 +97,8 @@ function PendingCard({ proposal }: { proposal: CatalogProposalPreview }) {
 
 export function ExpressionCatalogManager({ robotId }: { robotId: string }) {
   const input = useRef<HTMLInputElement>(null);
+  const revision=useRef(0);
+  useEffect(()=>()=>{revision.current+=1;},[]);
   const [snapshot, setSnapshot] = useState<CatalogSnapshot | null>(null);
   const [filename, setFilename] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -109,13 +112,15 @@ export function ExpressionCatalogManager({ robotId }: { robotId: string }) {
     const file = event.currentTarget.files?.[0];
     event.currentTarget.value = '';
     if (!file) return;
+    const request=++revision.current;
     setError(null);
     try {
       if (file.size <= 0 || file.size > MAX_SNAPSHOT_BYTES) {
         throw new Error('Il file deve essere JSON e non superare 2 MiB.');
       }
       const raw = await file.text();
-      const parsed: unknown = JSON.parse(raw);
+      if(request!==revision.current)return;
+      const parsed=parseVisualJson(raw,MAX_SNAPSHOT_BYTES);
       const valid = parseCatalogSnapshot(parsed, robotId);
       setSnapshot(valid);
       setFilename(file.name.slice(0,MAX_FILE_LABEL));
@@ -127,7 +132,8 @@ export function ExpressionCatalogManager({ robotId }: { robotId: string }) {
         valid.proposals[0]?.proposal_id ?? '');
       setTab('expressions');
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Impossibile leggere lo snapshot.');
+      if(request!==revision.current)return;
+      setError('Snapshot rifiutato: formato o profilo non valido.');
       // Never show outdated data after a failed/mismatched import.
       setSnapshot(null);
       setFilename(null);
@@ -180,7 +186,7 @@ export function ExpressionCatalogManager({ robotId }: { robotId: string }) {
           <Upload size={16}/> Carica snapshot JSON
         </button>
         {snapshot && <button type="button" onClick={() => {
-          setSnapshot(null); setFilename(null); setError(null); setActiveId(''); setActiveProposalId('');
+          revision.current+=1;setSnapshot(null); setFilename(null); setError(null); setActiveId(''); setActiveProposalId('');
         }} className="rounded-xl border border-line px-3 py-2.5 text-xs text-slate-300">
           Chiudi snapshot
         </button>}

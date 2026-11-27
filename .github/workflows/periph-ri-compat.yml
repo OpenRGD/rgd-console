@@ -1,0 +1,33 @@
+name: PERIPH-RI-01 offline compatibility
+on:
+  pull_request:
+    paths:
+      - 'scripts/ri_periph_compat.py'
+      - 'scripts/tests/test_ri_periph_compat.py'
+      - '.github/workflows/periph-ri-compat.yml'
+      - 'docs/handoffs/PERIPH-TO-RI.md'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  compatibility:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/checkout@v4
+        with:
+          repository: OpenRGD/rgd-reality-ingress
+          ref: 5372f758df79c93fc887f3858d878635447f4a4d
+          path: .upstream/ri
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Match both candidate schemas using the real pinned RI implementation
+        run: |
+          test "$(git -C .upstream/ri rev-parse HEAD)" = 5372f758df79c93fc887f3858d878635447f4a4d
+          python -m pip install "jsonschema==4.23.0"
+          RI_CHECKOUT="$PWD/.upstream/ri" PYTHONPATH="$PWD/.upstream/ri/src" python -m unittest discover -s scripts/tests -p 'test_ri_periph_compat.py' -v

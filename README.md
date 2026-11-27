@@ -1,3 +1,52 @@
+# OpenRGD Console — GitHub software baseline v0.4.3
+
+**Canonical development source:** `OpenRGD/rgd-console` on GitHub. Development uses feature branches and Pull Requests; do not use archived ZIP upgrade instructions to replace an existing checkout.
+
+**Release scope and acceptance:** [Console v0.4.3 software baseline](docs/releases/CONSOLE-v0.4.3.md). The API, Web package, Live badge and diagnostics expose the aligned version `0.4.3`. This is a **non-actuating** software baseline; physical robot compatibility, IMU calibration and motor readiness remain unverified.
+
+## Peripheral Manager / Reality Ingress — candidate integration (NOT released)
+
+The following source-only candidate is preserved for the autonomous PERIPH extraction, not part of the published v0.4.3 release. Source integration does not authorize installation, commissioning, or operator controls. See [the extraction handoff](docs/handoffs/CONSOLE-TO-PERIPH-EXTRACT-01.md) for the exact boundaries and open acceptance gates. The existing producer-side IMU export and offline RI correlation remain independent of the running Console and its live IMU path.
+
+## PERIPH-0.2 — Host Peripheral Manager pilot (source only)
+
+This candidate branch adds the first **general-purpose, rootless Peripheral Host
+Manager**. The initial instance is Paky-01's WIT/CH340 IMU publisher. Device
+identity, one exclusive acquisition owner, observation streams and permitted
+host lifecycle actions use the same versioned PERIPH-0.1 contracts designed for
+future cameras and microphones.
+
+- `services/peripheral-manager/host_broker.py`: same-UID, 0600/0700
+  Unix socket; accepts only fixed identity+request ID and exact allowlisted
+  `systemctl --user show/start/stop` of a managed publisher. It never reads
+  USB serial, publishes samples or authorizes motors.
+- `install_paky01_imu.py`: **read-only preflight by default**. Opt-in manual
+  installation of one `systemd --user` IMU service and the generic host
+  broker requires `--install --confirm 'INSTALL PAKY01 IMU'`. Installation
+  **does not start or enable** either service; no Docker/API/UI change.
+- `control_cli.py`: private host-user status and explicitly confirmed
+  start/stop, with status-revision guard and idempotent requests.
+- Paired `italiarobotica/paky-01` branch
+  `feat/periph-0.2-imu-managed-publisher` adds opt-in `--continuous`
+  and graceful SIGTERM, preserving the previous 60-second default and
+  exclusive serial ownership.
+- Source-only tests use mocked systemd, udev, serial and private socket;
+  physical Paky-01 start/stop is **not yet accepted**.
+
+**Important:** the Console Docker API deliberately does **not** connect to
+the host broker yet. UID10001 cannot access the same-UID private socket.
+A separately reviewed authenticated local operator/delegation contract is
+required in PERIPH-0.3 before displaying operational buttons in the UI.
+Do not overwrite the local Console IMU v0.5 overlays with this branch.
+
+See [the host commissioning guide](docs/PERIPH-0.2-HOST-MANAGER-BENCH.md),
+[the generic contracts](docs/PERIPHERAL-MANAGER-CORE-v01.md), and
+[the first IMU adapter RFC](docs/P01-IMU-PUBLISHER-CONTROL-v01.md).
+
+The historical wave documentation below is retained for traceability only.
+
+---
+
 # OpenRGD Console — Robot Boot Foundation v0.4D
 
 **Boot & Recovery implemented as an independent, non-actuating service.** This update builds directly on v0.4C Live and the mini-PC-tested v0.4B stack (Rust API, Next.js, Module Agent, Calibration). It does not modify any upstream OpenRGD repositories, Linux bootloader, GNOME login, CAN controller or Somatic Runtime.

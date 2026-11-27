@@ -152,7 +152,7 @@ export function RobotLive({ embedded = false }: { embedded?: boolean } = {}) {
   return <main id="live-main" className={`live-shell ${settings.contrast === 'high' ? 'live-high-contrast' : ''} ${settings.reduced_motion ? 'live-reduced-motion' : ''} ${isEmbedded ? 'live-embedded' : ''}`} style={style}>
     <a className="live-skip" href="#live-panels">Vai ai pannelli</a>
     <header className="live-header">
-      <div className="live-brand"><CircleDot aria-hidden="true" size={23} /><div><strong>Open<span>RGD</span></strong><small>LIVE / v0.4D</small></div></div>
+      <div className="live-brand"><CircleDot aria-hidden="true" size={23} /><div><strong>Open<span>RGD</span></strong><small>LIVE / v0.4.3</small></div></div>
       <div className="live-context">
         <label htmlFor="live-robot" className="live-hidden-label">Robot visualizzato</label>
         <select id="live-robot" disabled={!robots.length} value={selectedRobot?.id ?? ''} onChange={e => selectRobot(e.target.value)}>

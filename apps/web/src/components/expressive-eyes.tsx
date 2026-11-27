@@ -116,9 +116,7 @@ export function ExpressiveEyesStudio({ stageInScene, currentSceneLabel, targetRo
       setCurrent(proposal.expression);
       setProposalRobotId(proposal.robot_id);
       setPreviewSource('Proposta simulata ' + proposal.proposal_id.slice(0, 8) + ' · ' + proposal.source_module);
-      setMessage(proposal.robot_id === targetRobotId
-        ? 'Proposta accettata soltanto in anteprima. Nessun preset registrato o display comandato.'
-        : 'Proposta visibile in anteprima, ma destinata a ' + proposal.robot_id + '. Non può essere associata al profilo ' + targetRobotId + '.');
+      setMessage('Proposta accettata soltanto in anteprima. Nessun preset registrato o display comandato.');
     } catch (err) {
       setMessage('Proposta rifiutata: JSON o ambito robot non valido.');
     }

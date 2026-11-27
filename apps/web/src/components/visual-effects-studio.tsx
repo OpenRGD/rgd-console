@@ -59,9 +59,9 @@ function StudioWorkspace({robotId}:{robotId:string}) {
 
   const selectedRule = profile.mappings[ruleIndex] ?? profile.mappings[0];
   const activeScene = overrideScene && profile.scenes[overrideScene] ? overrideScene :
-    (profile.scenes[selectedRule?.scene] ? selectedRule.scene : profile.fallback_scene);
+    (selectedRule && Object.hasOwn(profile.scenes,selectedRule.scene) ? selectedRule.scene : profile.fallback_scene);
   const targets = profile.scenes[activeScene] ?? [];
-  const face = targets.find(isLightTarget);
+  const face = targets.find(isLightTarget); // first light target only, not hardware discovery
   const eyesTarget = targets.find((target): target is EyeTarget => target.effect === 'eye_expression');
   const activeEyeExpression = eyesTarget ? profile.expressions[eyesTarget.expression_id] : undefined;
   const activeEffects = targets.map(target => target.effect);
@@ -161,7 +161,7 @@ function StudioWorkspace({robotId}:{robotId:string}) {
     if (source === null) return;
     const event = window.prompt('Nome evento (es. person.detected):', 'person.detected');
     if (event === null) return;
-    if (!/^[a-z][a-z0-9_-]{0,79}$/.test(source) || !/^[a-z][a-z0-9._-]{0,99}$/.test(event)) {
+    if (!validKey(source) || !/^[a-z][a-z0-9._-]{0,99}$/.test(event)) {
       setMessage('Sorgente o evento non valido. Usa lettere minuscole, numeri, punti, trattini.');
       return;
     }
@@ -224,7 +224,7 @@ function StudioWorkspace({robotId}:{robotId:string}) {
     setMessage('Bozza JSON esportata. Non è stata applicata al robot.');
   }
 
-  const shadow = '0 0 33px ' + sceneColor(face) + '66';
+  const shadow = face && face.brightness>0 ? '0 0 33px ' + sceneColor(face) + '66' : 'none';
   return <div className="min-h-screen bg-canvas text-slate-100">
     <div className="border-b border-line bg-[#0d1721]/95">
       <div className="mx-auto flex max-w-[1560px] flex-wrap items-center justify-between gap-4 px-5 py-5 md:px-10">
@@ -315,7 +315,7 @@ function StudioWorkspace({robotId}:{robotId:string}) {
 
       <div className="grid items-start gap-5 xl:grid-cols-[minmax(270px,.95fr)_minmax(360px,1.1fr)_minmax(310px,.95fr)]">
         <section className="panel overflow-hidden">
-          <div className="flex items-center justify-between border-b border-line p-5"><div><h2 className="text-sm font-semibold">1 · Trigger &amp; matching</h2><p className="mt-1 text-xs text-muted">Eventi normalizzati, non dispositivi</p></div><Volume2 className="text-mint" size={19}/></div>
+          <div className="flex items-center justify-between border-b border-line p-5"><div><h2 className="text-sm font-semibold">1 · Trigger &amp; matching</h2><p className="mt-1 text-xs text-muted">Selezione manuale di una regola · non esecuzione del matching</p></div><Volume2 className="text-mint" size={19}/></div>
           <div className="max-h-[460px] space-y-1 overflow-auto p-3">
             {profile.mappings.map((rule, index) => <button type="button" key={rule.source + ':' + rule.event + ':' + index} onClick={() => { setRuleIndex(index); setOverrideScene(null); }}
               className={'w-full rounded-xl border p-3 text-left transition ' + (ruleIndex === index ? 'border-mint/30 bg-mint/10' : 'border-transparent hover:bg-white/[.04]')}>
@@ -387,7 +387,7 @@ function StudioWorkspace({robotId}:{robotId:string}) {
           <div className="flex items-center justify-between border-b border-line p-5"><div><h2 className="text-sm font-semibold">3 · Simulatore</h2><p className="mt-1 text-xs text-muted">Nessun BLE / USB / Wi-Fi attivato</p></div><Lightbulb className="text-mint" size={20}/></div>
           <div className="relative grid min-h-[345px] place-items-center overflow-hidden bg-[radial-gradient(circle_at_center,#152537,#0a121b_68%)] p-10">
             <div className="ve-ring-shell">
-              <div className={'ve-ring ve-' + (face?.effect ?? 'solid')} style={{ ...ringStyle, boxShadow: shadow }} aria-label={'Anello virtuale ' + activeScene} />
+              <div className={'ve-ring ve-' + (face?.effect ?? 'solid')} style={{ ...ringStyle, boxShadow: shadow }} aria-label={'Prima zona luminosa virtuale ' + activeScene} />
               <div className="ve-ring-center"><CircleDot size={26} className="mx-auto text-slate-500" /><div className="mt-2 text-center text-xs font-semibold text-slate-200">{profile.robot_id}</div><div className="mt-1 text-center font-mono text-[10px] text-muted">VIRTUAL OUTPUT</div></div>
             </div>
           </div>

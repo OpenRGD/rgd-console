@@ -1,6 +1,6 @@
 /** Bounded local-only JSON, no duplicate decoded keys, no raw parser errors. */
 export function validPreviewRobot(value: unknown): value is string {
-  return typeof value==='string' && /^[a-z0-9][a-z0-9_-]{0,79}$(?![\s\S])/.test(value);
+  return typeof value==='string' && /^[a-z0-9][a-z0-9_-]{0,79}$(?![\s\S])/.test(value) && !['constructor','prototype','__proto__'].includes(value);
 }
 export function parseVisualJson(raw:string,maxBytes:number):unknown {
   if(!raw.length||new TextEncoder().encode(raw).length>maxBytes)throw new Error('File vuoto o oltre il limite.');

@@ -1,3 +1,4 @@
+import {validPreviewRobot} from './visual-json.ts';
 /** VISUAL-0.2D read-only snapshot inspection. Not cryptographic attestation. */
 import { validExpression } from './visual-expression.ts';
 import type { EyeExpression } from './visual-expression.ts';
@@ -128,7 +129,7 @@ export function parseCatalogSnapshot(input: unknown, expectedRobot: string): Cat
       input.preview_only !== true || input.hardware_execution_authorized !== false) {
     throw new Error('Contratto non supportato o autorizzazioni hardware non ammesse.');
   }
-  if (typeof input.robot_id !== 'string' || !ROBOT.test(input.robot_id)) throw new Error('Robot ID non valido.');
+  if (!validPreviewRobot(input.robot_id)) throw new Error('Robot ID non valido.');
   if (input.robot_id !== expectedRobot) throw new Error(
     'Snapshot destinato a ' + input.robot_id + '. Seleziona quel robot prima di importarlo.'
   );

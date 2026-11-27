@@ -1,3 +1,4 @@
+import {validPreviewRobot} from './visual-json.ts';
 export type EyeParams = {
   openness: number; gaze_x: number; gaze_y: number;
   pupil_scale: number; brow_tilt_deg: number;
@@ -91,7 +92,7 @@ function isEye(value: unknown): value is EyeParams {
 export function validExpression(value: unknown): value is EyeExpression {
   if (!exact(value, EXPR_KEYS)) return false;
   if (value.schema_version !== DEMO_EXPRESSION.schema_version ||
-    typeof value.expression_id !== 'string' || !/^[a-z][a-z0-9_]{2,47}$/.test(value.expression_id)) return false;
+    typeof value.expression_id !== 'string' || !/^[a-z][a-z0-9_]{2,47}$(?![\s\S])/.test(value.expression_id) || ['constructor','prototype'].includes(value.expression_id)) return false;
   if (typeof value.label !== 'string' || !value.label.length || Array.from(value.label).length > 64 || /[\x00-\x1f\x7f]/.test(value.label)) return false;
   if (value.origin !== 'operator' && value.origin !== 'cognitive_proposal') return false;
   if (value.preview_only !== true || value.non_actuating !== true || value.claims_emotion_as_internal_state !== false) return false;
@@ -111,7 +112,7 @@ export function validProposal(value: unknown): value is Proposal {
   if (!exact(value, PROPOSAL_KEYS)) return false;
   return value.contract === DEMO_PROPOSAL.contract &&
     typeof value.proposal_id === 'string' && /^[a-f0-9]{32}$/.test(value.proposal_id) &&
-    typeof value.robot_id === 'string' && /^[a-z0-9][a-z0-9_-]{0,79}$/.test(value.robot_id) &&
+    validPreviewRobot(value.robot_id) &&
     value.source_module === DEMO_PROPOSAL.source_module &&
     typeof value.source_session_id === 'string' && /^[a-f0-9]{32}$/.test(value.source_session_id) &&
     integer(value.source_sequence, 0, Number.MAX_SAFE_INTEGER) &&

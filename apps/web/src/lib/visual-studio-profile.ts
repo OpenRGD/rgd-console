@@ -45,16 +45,16 @@ function isDraft(value: unknown): value is StudioProfile {
       const target = output as Record<string, unknown>;
       if (target.effect === 'eye_expression') {
         return Object.keys(target).sort().join(',') === 'effect,expression_id,zone_id' &&
-          typeof target.expression_id === 'string' && target.expression_id in catalog;
+          typeof target.expression_id === 'string' && Object.hasOwn(catalog,target.expression_id);
       }
-      return ['solid','pulse','chase','wave'].includes(String(target.effect)) &&
+      return typeof target.effect==='string' && ['solid','pulse','chase','wave'].includes(target.effect) &&
         typeof target.color === 'string' && /^#[0-9A-Fa-f]{6}$/.test(target.color) &&
         typeof target.brightness === 'number' && Number.isInteger(target.brightness) &&
         target.brightness >= 0 && target.brightness <= 100;
     }));
 }
 
-export const validKey = (s: string) => /^[a-z][a-z0-9_-]{0,79}$/.test(s) && !['constructor','prototype','__proto__'].includes(s);
+export const validKey = (s: string) => /^[a-z][a-z0-9_-]{0,79}$(?![\s\S])/.test(s) && !['constructor','prototype','__proto__'].includes(s);
 const hasOwn = (obj: object, name: string) => Object.prototype.hasOwnProperty.call(obj, name);
 
 /** Import is only an untrusted browser draft, never a robot/runtime configuration. */
@@ -100,7 +100,7 @@ export function validCompleteDraft(value: unknown): value is StudioProfile {
     if (!m || typeof m !== 'object' || Array.isArray(m) || Object.keys(m).sort().join('|') !== 'event|priority|scene|source' ||
       typeof m.source !== 'string' || !validKey(m.source) ||
       typeof m.event !== 'string' || !/^[a-z][a-z0-9._-]{0,99}$/.test(m.event) ||
-      !hasOwn(p.scenes,m.scene) || !Number.isInteger(m.priority) || m.priority < 0 || m.priority > 100) return false;
+      typeof m.scene!=='string' || !hasOwn(p.scenes,m.scene) || !Number.isInteger(m.priority) || m.priority < 0 || m.priority > 100) return false;
     const token = m.source + ':' + m.event + ':' + m.priority;
     if (matches.has(token)) return false;
     matches.add(token);

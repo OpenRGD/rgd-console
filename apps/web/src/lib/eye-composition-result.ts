@@ -1,3 +1,4 @@
+import {validPreviewRobot} from './visual-json.ts';
 /** VISUAL v0.1 — strict read-only parser for canonical Eye Composer outputs.
  *
  * This is NOT the composition policy engine and not an evidence verifier.
@@ -83,7 +84,7 @@ export function parseCompositionResult(input: unknown, expectedRobot: string): C
     input.non_actuating !== true) {
     throw new Error('Il risultato richiede un formato simulato e privo di autorità hardware.');
   }
-  if (typeof input.robot_id !== 'string' || !ROBOT.test(input.robot_id))
+  if (!validPreviewRobot(input.robot_id))
     throw new Error('Identificatore robot non valido.');
   if (input.robot_id !== expectedRobot)
     throw new Error('Questo risultato è per ' + input.robot_id + '. Seleziona il robot corretto.');
@@ -98,7 +99,7 @@ export function parseCompositionResult(input: unknown, expectedRobot: string): C
     throw new Error('Stato periferica o indicatore non valido.');
   if (input.eyes_disabled && (input.eyes_scene !== 'off' || input.blank_pixels_intent !== true))
     throw new Error('Output occhi disabilitato ma non rappresentato come blank.');
-  if (input.blank_pixels_intent && input.eyes_scene !== 'off')
+  if (input.blank_pixels_intent !== (input.eyes_scene === 'off'))
     throw new Error('Blank intent non compatibile con la scena occhi.');
   if (!exact(input.ring_intent,['color','brightness','derived_from','applied']) ||
     typeof input.ring_intent.color !== 'string' || !COLOR.test(input.ring_intent.color) ||
@@ -112,7 +113,7 @@ export function parseCompositionResult(input: unknown, expectedRobot: string): C
       !SOCIAL.has(input.social_overlay.scene as string) ||
       typeof input.social_overlay.gesture_id !== 'string' || !GESTURE.test(input.social_overlay.gesture_id) ||
       !isInt(input.social_overlay.remaining_ms) ||
-      (input.social_overlay.remaining_ms as number) <= 0 ||
+      (input.social_overlay.remaining_ms as number) <= 0 || (input.social_overlay.remaining_ms as number)>12000 ||
       input.gesture_status !== 'visible')
       throw new Error('Overlay sociale non valido.');
   } else if (input.gesture_status === 'visible') {

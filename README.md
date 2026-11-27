@@ -6,7 +6,7 @@
 
 ## Peripheral Manager / Reality Ingress — candidate integration (NOT released)
 
-The following source-only proposal exists on this review branch, not in the published v0.4.3 release. The existing producer-side IMU export and offline RI correlation remain independent of the running Console and its live IMU path.
+The following source-only candidate is preserved for the autonomous PERIPH extraction, not part of the published v0.4.3 release. Source integration does not authorize installation, commissioning, or operator controls. See [the extraction handoff](docs/handoffs/CONSOLE-TO-PERIPH-EXTRACT-01.md) for the exact boundaries and open acceptance gates. The existing producer-side IMU export and offline RI correlation remain independent of the running Console and its live IMU path.
 
 ## PERIPH-0.2 — Host Peripheral Manager pilot (source only)
 

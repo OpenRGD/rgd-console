@@ -157,6 +157,13 @@ pub async fn inspect_calibration(zip_bytes: Vec<u8>) -> Result<Value, ManagerErr
         && report.get("physical_drift_evaluated").and_then(Value::as_bool) == Some(false)
         && report.get("claims_physical_calibration_certified").and_then(Value::as_bool) == Some(false)
         && report.get("export_preview").is_some_and(Value::is_null)
+        && report.get("profile_id").is_some_and(Value::is_null)
+        && report.get("profile_state").is_some_and(Value::is_null)
+        && report.get("profile_binding").and_then(Value::as_str) == Some("no_profile")
+        && report.get("coverage").and_then(|c| c.get("saved_evidence_fields")).and_then(Value::as_u64) == Some(0)
+        && report.get("parameters").and_then(Value::as_array).is_some_and(|params| params.iter().all(|p|
+            p.get("stored_measurements").and_then(Value::as_array).is_some_and(|m| m.is_empty())
+            && matches!(p.get("coverage").and_then(Value::as_str), Some("absent" | "declared_only"))))
         && body.get("evidence_class").and_then(Value::as_str) == Some("declared_profile_only_not_physical_observation");
     if !declared_only {
         return Err(ManagerError::new(StatusCode::BAD_GATEWAY, "Provenienza o invarianti di sicurezza CAL-0.2 non validi"));

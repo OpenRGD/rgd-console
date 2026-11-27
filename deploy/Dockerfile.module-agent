@@ -2,7 +2,7 @@
 # Runtime installs always go through its exact source-commit verification logic.
 FROM rust:1.90-bookworm
 ARG REGISTRY_COMMIT=0268b3748042d04fd3561553616388368881e04a
-RUN apt-get update && apt-get install -y --no-install-recommends python3 git ca-certificates \
+RUN apt-get update && apt-get install -y --no-install-recommends python3 python3-jsonschema git ca-certificates \
   && rm -rf /var/lib/apt/lists/*
 WORKDIR /opt/openrgd
 RUN git init -q rgd-modules \
@@ -14,6 +14,8 @@ RUN git init -q rgd-modules \
 RUN mkdir -p /opt/openrgd/module-agent && chmod 0755 /opt/openrgd/module-agent
 COPY --chmod=0644 services/module-agent/server.py /opt/openrgd/module-agent/server.py
 COPY --chmod=0644 services/module-agent/calibration_passive.py /opt/openrgd/module-agent/calibration_passive.py
+COPY --chmod=0644 services/module-agent/calibration_contract.py /opt/openrgd/module-agent/calibration_contract.py
+COPY services/module-agent/calibration-contracts/ /opt/openrgd/module-agent/calibration-contracts/
 ENV PYTHONPATH=/opt/openrgd/rgd-modules:/opt/openrgd/module-agent \
     OPENRGD_MODULE_DATA_DIR=/app/data \
     CARGO_HOME=/app/data/cargo \

@@ -49,7 +49,7 @@ function RenderSection({ section, data }: { section: SectionId; data: ConsoleDat
     case 'mind': return <Mind {...data} />;
     case 'memory': return <Memory {...data} />;
     case 'modules': return <Modules {...data} />;
-    case 'voice': return <VoiceReadinessPanel robotId={data.robot.id} />;
+    case 'voice': return <VoiceReadinessPanel key={data.robot.id} robotId={data.robot.id} />;
     case 'settings': return <Settings {...data} />;
   }
 }

@@ -141,6 +141,9 @@ pub fn inspect_bundle(bytes: &[u8], original_name: &str) -> Result<ImportedModel
                 parent_link: string(&item["connectivity"], "parent_link_ref_str").map(str::to_owned),
                 child_link: string(&item["connectivity"], "child_link_ref_str").map(str::to_owned),
                 origin_xyz_m: vector(&item["geometry_ideal"], "origin_xyz_m_vec3_float"),
+                // Preserve ideal local joint frame orientation for future
+                // visual link FK, without claiming installed encoder/IMU frame calibration.
+                origin_rpy_rad: vector(&item["geometry_ideal"], "origin_rpy_rad_vec3_float"),
                 axis_xyz: vector(&item["geometry_ideal"], "axis_xyz_vec3_float"),
                 lower_limit: finite(&item["limits_ideal"], "position_lower_rad_float"),
                 upper_limit: finite(&item["limits_ideal"], "position_upper_rad_float"),
@@ -345,6 +348,147 @@ mod tests {
     fn rgd_json_is_not_misinterpreted_as_an_archive() {
         let message = inspect_bundle(br#"{"spec":{}}"#, "unified.rgd").unwrap_err();
         assert!(message.contains("non contiene un archivio ZIP"));
+    }
+
+    #[test]
+    fn source_joint_rpy_is_preserved_as_nominal_geometry_and_missing_rpy_stays_unknown() {
+        let mut writer = ZipWriter::new(Cursor::new(Vec::new()));
+        writer.start_file("spec/01_foundation/description.jsonc", SimpleFileOptions::default()).unwrap();
+        writer.write_all(br#"{
+          "meta_group": {"species_name_str":"SyntheticGeometryOnly"},
+          "kinematic_chain_list": [
+            {"link_id_str":"base"}, {"link_id_str":"arm_a"}, {"link_id_str":"arm_b"}
+          ],
+          "joint_topology_map": {
+            "arm_a_joint": {
+              "type_enum": "REVOLUTE",
+              "connectivity": {"parent_link_ref_str":"base", "child_link_ref_str":"arm_a"},
+              "geometry_ideal": {
+                "origin_xyz_m_vec3_float":[0.10,0.15,0.20],
+                "origin_rpy_rad_vec3_float":[0.25,-1.57,0.50],
+                "axis_xyz_vec3_float":[0,0,1]
+              }
+            },
+            "arm_b_joint": {
+              "type_enum": "REVOLUTE",
+              "connectivity": {"parent_link_ref_str":"arm_a", "child_link_ref_str":"arm_b"},
+              "geometry_ideal": {"origin_xyz_m_vec3_float":[0.1,0.0,0.0]}
+            }
+          }
+        }"#).unwrap();
+        let bytes = writer.finish().unwrap().into_inner();
+        let model = inspect_bundle(&bytes, "synthetic.zip").unwrap();
+        let a = model.joints.iter().find(|j| j.id == "arm_a_joint").unwrap();
+        assert_eq!(a.origin_xyz_m.as_deref(), Some(&[0.10, 0.15, 0.20][..]));
+        assert_eq!(a.origin_rpy_rad.as_deref(), Some(&[0.25, -1.57, 0.50][..]));
+        assert_eq!(a.axis_xyz.as_deref(), Some(&[0.0, 0.0, 1.0][..]));
+        let b = model.joints.iter().find(|j| j.id == "arm_b_joint").unwrap();
+        assert_eq!(b.origin_rpy_rad, None); // missing source != certified [0,0,0]
+        assert_eq!(model.integrity_state, "canonical_not_verified");
+        assert_eq!(model.source_sha256, format!("sha256:{}", sha256(&bytes)));
+    }
+
+    #[test]
+    fn legacy_persisted_joint_without_origin_rpy_still_deserializes() {
+        let old = serde_json::json!({
+            "id":"legacy_arm_joint", "joint_type":"REVOLUTE",
+            "parent_link":"base", "child_link":"arm",
+            "origin_xyz_m":[0.1,0.2,0.3], "axis_xyz":[0.0,0.0,1.0],
+            "lower_limit":null, "upper_limit":null
+        });
+        let joint: RgdJoint = serde_json::from_value(old).unwrap();
+        assert_eq!(joint.origin_rpy_rad, None);
+        assert_eq!(joint.origin_xyz_m.unwrap(), vec![0.1,0.2,0.3]);
+    }
+
+    #[test]
+    fn rpy_preview_rejects_invalid_shape_without_inventing_values() {
+        let mut writer = ZipWriter::new(Cursor::new(Vec::new()));
+        writer.start_file("spec/01_foundation/description.jsonc", SimpleFileOptions::default()).unwrap();
+        writer.write_all(br#"{
+          "meta_group":{"model_id_str":"synthetic"},
+          "joint_topology_map":{
+            "zero":{"geometry_ideal":{"origin_rpy_rad_vec3_float":[0,0,0]}},
+            "short":{"geometry_ideal":{"origin_rpy_rad_vec3_float":[0,1]}},
+            "long":{"geometry_ideal":{"origin_rpy_rad_vec3_float":[0,1,2,3]}},
+            "typed":{"geometry_ideal":{"origin_rpy_rad_vec3_float":[0,"1",2]}},
+            "bool":{"geometry_ideal":{"origin_rpy_rad_vec3_float":[0,true,2]}},
+            "null":{"geometry_ideal":{"origin_rpy_rad_vec3_float":null}},
+            "missing":{"geometry_ideal":{}}
+          }
+        }"#).unwrap();
+        let bytes = writer.finish().unwrap().into_inner();
+        let model = inspect_bundle(&bytes, "synthetic.rgd").unwrap();
+        let nonfinite = serde_json::json!({"rpy":[f64::NAN,0.0,0.0]});
+        assert!(vector(&nonfinite, "rpy").is_none());
+        for j in &model.joints {
+            if j.id == "zero" {
+                assert_eq!(j.origin_rpy_rad.as_deref(), Some(&[0.0, 0.0, 0.0][..]));
+            } else {
+                assert_eq!(j.origin_rpy_rad, None, "unexpected RPY for {}", j.id);
+            }
+        }
+        assert_eq!(model.integrity_state, "canonical_not_verified");
+    }
+
+    #[test]
+    fn companion_content_does_not_issue_as_built_life_or_canonical_identity() {
+        fn bundle(visual_value: &[u8]) -> Vec<u8> {
+            let mut writer = ZipWriter::new(Cursor::new(Vec::new()));
+            writer.start_file("spec/01_foundation/description.jsonc", SimpleFileOptions::default()).unwrap();
+            writer.write_all(br#"{"meta_group":{"model_id_str":"same-design"},"joint_topology_map":{"j":{"geometry_ideal":{"origin_rpy_rad_vec3_float":[0.1,0.2,0.3]}}}}"#).unwrap();
+            // These are deliberately UNTRUSTED claims, not valid Core records.
+            writer.start_file("evolution/as-built/r0001.json", SimpleFileOptions::default()).unwrap();
+            writer.write_all(br#"{"life_identity_issued":true,"calibration_verified":true,"history_committed":true,"physical_execution_authorized":true}"#).unwrap();
+            writer.start_file("assets/visual/manifest.json", SimpleFileOptions::default()).unwrap();
+            writer.write_all(visual_value).unwrap();
+            writer.finish().unwrap().into_inner()
+        }
+        let a = bundle(br#"{"appearance":"first"}"#);
+        let b = bundle(br#"{"appearance":"second"}"#);
+        let x = inspect_bundle(&a, "a.rgd").unwrap();
+        let y = inspect_bundle(&b, "b.rgd").unwrap();
+        assert_ne!(x.model_id, y.model_id); // whole-archive import identity
+        assert_ne!(x.source_sha256, y.source_sha256);
+        assert_eq!(x.joints[0].origin_rpy_rad, y.joints[0].origin_rpy_rad);
+        for model in [x, y] {
+            let wire = serde_json::to_value(&model).unwrap();
+            for key in ["life_id", "source_root_digest", "visual_manifest_sha256", "as_built_revision_ref", "history_committed", "calibration_verified", "physical_execution_authorized"] {
+                assert!(wire.get(key).is_none(), "unexpected authority/reference field {key}");
+            }
+            assert_eq!(model.integrity_state, "canonical_not_verified");
+            assert_eq!(model.geometry_state, "declared_joint_topology_only");
+        }
+    }
+
+    #[test]
+    #[ignore = "requires exact pinned Core fixtures produced by dedicated conformance CI"]
+    fn pinned_core_description_and_urdf_preserve_rpy() {
+        let root = std::path::PathBuf::from(std::env::var_os("CONSOLE_CORE_MODEL_FIXTURES")
+            .expect("CONSOLE_CORE_MODEL_FIXTURES must point to the generated fixture directory"));
+        let reference = std::fs::read(root.join("reference.rgd")).unwrap();
+        let nominal = inspect_bundle(&reference, "reference.rgd").unwrap();
+        assert_eq!(nominal.joints.iter().find(|j| j.id == "knee_joint_right").unwrap()
+            .origin_rpy_rad.as_deref(), Some(&[0.0,0.0,0.0][..]));
+        assert_eq!(nominal.source_sha256, format!("sha256:{}", sha256(&reference)));
+        let generated = std::fs::read(root.join("urdf-derived.rgd")).unwrap();
+        let model = inspect_bundle(&generated, "urdf-derived.rgd").unwrap();
+        assert_eq!(model.joints.len(), 3);
+        for (id, expected) in [
+            ("rotated", Some(vec![0.25,-1.5,0.5])),
+            ("zero", Some(vec![0.0,0.0,0.0])),
+            ("unknown", None),
+        ] {
+            let joint = model.joints.iter().find(|j| j.id == id).unwrap();
+            assert_eq!(joint.origin_rpy_rad, expected, "Core source field {id}");
+        }
+        assert_eq!(model.profile_state, "partial_foundation");
+        assert_eq!(model.integrity_state, "canonical_not_verified");
+        assert_eq!(model.source_sha256, format!("sha256:{}", sha256(&generated)));
+        assert_eq!(model.model_id, format!("rgd-{}", &sha256(&generated)[..20]));
+        let wire = serde_json::to_value(&model).unwrap();
+        assert_eq!(wire["joints"].as_array().unwrap().iter().find(|j| j["id"] == "unknown").unwrap()["origin_rpy_rad"], serde_json::Value::Null);
+        println!("PASS pinned Core reference + actual URDF importer: declared nonzero / explicit zero / unknown RPY, unchanged archive identity");
     }
 
     fn hal_test_archive(link: bool) -> Vec<u8> {

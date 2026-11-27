@@ -1,0 +1,51 @@
+name: CONSOLE-023C model metadata interop
+on:
+  pull_request:
+    paths:
+      - 'services/api/src/model.rs'
+      - 'services/api/src/model_import.rs'
+      - 'contracts/console/v1/model.schema.json'
+      - 'apps/web/src/lib/model-metadata.ts'
+      - 'apps/web/src/components/onboarding.tsx'
+      - 'scripts/model-metadata.test.mjs'
+      - 'scripts/prepare_core_model_metadata_fixture.py'
+      - '.github/workflows/model-metadata-interop.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'services/api/src/model.rs'
+      - 'services/api/src/model_import.rs'
+      - 'contracts/console/v1/model.schema.json'
+      - 'apps/web/src/lib/model-metadata.ts'
+      - 'apps/web/src/components/onboarding.tsx'
+      - 'scripts/model-metadata.test.mjs'
+      - 'scripts/prepare_core_model_metadata_fixture.py'
+      - '.github/workflows/model-metadata-interop.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  pinned-core-model-metadata:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/checkout@v4
+        with:
+          repository: OpenRGD/openrgd
+          ref: afe1a831b950a4e6560f0285a0103fc4eaa343b7
+          path: _interop/core
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Build fixtures from actual pinned Core parser, no hardware
+        run: |
+          test "$(git -C _interop/core rev-parse HEAD)" = afe1a831b950a4e6560f0285a0103fc4eaa343b7
+          python scripts/prepare_core_model_metadata_fixture.py --core _interop/core --out _interop/model-fixtures
+      - name: Verify real Console import of both source archives
+        run: |
+          CONSOLE_CORE_MODEL_FIXTURES="$PWD/_interop/model-fixtures" cargo test --manifest-path services/api/Cargo.toml model_import::tests::pinned_core_description_and_urdf_preserve_rpy -- --ignored --exact --nocapture

@@ -208,7 +208,7 @@ export function RobotLive({ embedded = false }: { embedded?: boolean } = {}) {
         {settings.visible_panels.activity && <div className="live-grid-activity"><Tile heading="EVENTI / DIAGNOSTICA" icon={<Activity size={15} aria-hidden="true" />} secondary><EventRows events={selectedEventRows} /></Tile></div>}
       </div>}
 
-      {view === 'body' && <div className="live-focus-layout"><Tile heading="CORPO 3D / MODELLO NOMINALE" icon={<BodyIcon size={16}/>}>
+      {view === 'body' && <div className="live-focus-layout live-body-focus"><Tile heading="CORPO 3D / MODELLO NOMINALE" icon={<BodyIcon size={16}/>}>
         <BodyViewport model={importedModel}/>
         <BodyEncoderPanel model={importedModel} snapshot={currentSnapshot} robotId={selectedRobot?.id??null} physicalRobot={physical} connected={liveWebSocket} now={now}/>
         {physical && <ImuPanel imu={imu?.robot_id===selectedRobot?.id?imu:null} connected={liveWebSocket} now={now}/>}

@@ -65,3 +65,21 @@ jobs:
           cargo test --manifest-path services/api/Cargo.toml model_import::tests::export_nominal_body_fixture -- --ignored --exact --nocapture
           node --experimental-strip-types scripts/check_body_reference.mjs "$CONSOLE_BODY_FIXTURE_JSON"
           node --experimental-strip-types --input-type=module -e 'import assert from "node:assert/strict";import {readFileSync} from "node:fs";import {nominalBody} from "./apps/web/src/lib/body-kinematics.ts";const b=nominalBody(JSON.parse(readFileSync(process.env.CONSOLE_BODY_FIXTURE_JSON,"utf8")));assert.equal(b.state,"partial");assert.equal(b.declaredJoints,3);assert.equal(b.bones.length,2);assert.equal(b.omitted[0].reason,"missing_transform");assert.equal(b.physicalPoseVerified,false)'
+      - name: Verify external fixture adapter with independent synthetic owner inventory
+        run: |
+          python - <<'PY'
+          import csv
+          import xml.etree.ElementTree as ET
+          root = ET.parse('_interop/core/tests/fixtures/urdf/openrgd_minimal_arm.urdf').getroot()
+          with open('_interop/model-fixtures/synthetic-inventory.csv','x',newline='',encoding='utf-8') as handle:
+              writer = csv.DictWriter(handle,fieldnames=['joint_name','type','parent_link','child_link'])
+              writer.writeheader()
+              for joint in root.findall('joint'):
+                  writer.writerow({'joint_name':joint.attrib['name'],'type':joint.attrib['type'],
+                                   'parent_link':joint.find('parent').attrib['link'],'child_link':joint.find('child').attrib['link']})
+          PY
+          python scripts/prepare_body_reference_fixture.py --core _interop/core --urdf _interop/core/tests/fixtures/urdf/openrgd_minimal_arm.urdf --inventory _interop/model-fixtures/synthetic-inventory.csv --out _interop/external-fixture
+          export CONSOLE_BODY_FIXTURE_ZIP="$PWD/_interop/external-fixture/reference.rgd"
+          export CONSOLE_BODY_FIXTURE_JSON="$PWD/_interop/external-fixture/model.json"
+          cargo test --manifest-path services/api/Cargo.toml model_import::tests::export_nominal_body_fixture -- --ignored --exact
+          node --experimental-strip-types scripts/check_body_reference.mjs "$CONSOLE_BODY_FIXTURE_JSON" _interop/external-fixture/expected.json --require-complete

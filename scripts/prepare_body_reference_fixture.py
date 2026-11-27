@@ -22,14 +22,21 @@ def main():
     if not Path(owner.__file__).resolve().is_relative_to(core):
         raise RuntimeError('Wrong Core source')
     a.out.mkdir(parents=True,exist_ok=False)
-    docs=URDFImporter(str(a.urdf.resolve(strict=True))).parse()
+    urdf=a.urdf.resolve(strict=True)
+    if not urdf.is_file() or urdf.stat().st_size>8*1024*1024:
+        raise ValueError('External URDF fixture missing or over test budget')
+    docs=URDFImporter(str(urdf)).parse()
     if set(docs)!={'spec/01_foundation/description.jsonc','spec/01_foundation/actuation_dynamics.jsonc'}:
         raise RuntimeError('Unexpected importer contract')
     with zipfile.ZipFile(a.out/'reference.rgd','x',zipfile.ZIP_STORED) as z:
         for name,raw in docs.items(): z.writestr(name,raw.encode('utf-8'))
     if a.inventory:
+        if not a.inventory.is_file() or a.inventory.stat().st_size>2*1024*1024:
+            raise ValueError('External inventory missing or over test budget')
         with a.inventory.open(newline='',encoding='utf-8') as h:
             rows=list(csv.DictReader(h))
+        if len(rows)>512:
+            raise ValueError('External inventory exceeds preview joint budget')
         expected=[{'id':r['joint_name'],'type':r['type'].upper(),'parent':r['parent_link'],'child':r['child_link']} for r in rows]
         if len({r['id'] for r in expected})!=len(expected): raise ValueError('Duplicate inventory joint')
         (a.out/'expected.json').write_text(json.dumps(expected),encoding='utf-8')

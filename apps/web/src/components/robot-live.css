@@ -214,3 +214,14 @@
 .imu-compact .imu-axis-grid dd {font-size:.87em;}
 .imu-compact .imu-evidence {display:none;}
 @media (max-width:480px) { .imu-cube-viewport{display:none} .imu-data-row{min-height:38px} .imu-axis-grid{gap:5px} }
+
+/* Body contains a tall reference viewport and diagnostic panels. Use the
+   existing live-content scroll container instead of clipping the card. */
+.live-body-focus {height:auto;min-height:100%;}
+.live-body-focus > .live-card {height:auto;min-height:0;overflow:visible;gap:10px;}
+@media (max-width: 540px) {
+  .live-footer button {flex:1 1 0;flex-direction:column;gap:3px;text-align:center;white-space:normal;font-size:.68em;letter-spacing:0;}
+}
+@container live-viewport (max-width:540px) {
+  .live-footer button {flex:1 1 0;flex-direction:column;gap:3px;text-align:center;white-space:normal;font-size:.68em;letter-spacing:0;}
+}

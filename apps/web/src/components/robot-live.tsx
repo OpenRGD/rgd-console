@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import dynamic from 'next/dynamic';
 import { useEffect, useState, type CSSProperties } from 'react';
 import {
   Activity, ArrowLeft, BatteryCharging, Box as BodyIcon, ChevronDown, CircleDot,
@@ -15,7 +16,13 @@ import type { BootReport, ConsoleEvent, Measurement, ImportedModel, TelemetrySna
 import { useNow } from '@/components/ui';
 import './robot-live.css';
 
-type LiveView = 'overview' | 'signals' | 'activity';
+type LiveView = 'overview' | 'cage' | 'signals' | 'activity';
+
+// Load WebGL only when the operator opens the 3D panel; keep default Live lightweight.
+const TorsoCagePreview = dynamic(() => import('@/components/torso-cage-preview'), {
+  ssr: false,
+  loading: () => <p className="live-note" role="status">Caricamento anteprima gabbia 3D…</p>,
+});
 type CatalogStatus = 'ready' | 'source_only' | 'not_installed' | 'tampered' | 'unknown';
 interface RegistryResponse {
   catalog: Array<{ descriptor: { id: string }; installation: { state: string } }>;
@@ -203,6 +210,12 @@ export function RobotLive({ embedded = false }: { embedded?: boolean } = {}) {
         {settings.visible_panels.activity && <div className="live-grid-activity"><Tile heading="EVENTI / DIAGNOSTICA" icon={<Activity size={15} aria-hidden="true" />} secondary><EventRows events={selectedEventRows} /></Tile></div>}
       </div>}
 
+      {view === 'cage' && <div className="live-focus-layout"><Tile heading="CORPO 3D / GABBIA PAKY-01" icon={<BodyIcon size={16} aria-hidden="true" />}>
+        <TorsoCagePreview robotId={physical ? selectedRobot?.id ?? null : null}
+          imu={physical && imu?.robot_id === selectedRobot?.id ? imu : null}
+          connected={liveWebSocket} now={now} />
+      </Tile></div>}
+
       {view === 'signals' && <div className="live-focus-layout"><Tile heading="SEGNALI / DATI DISPONIBILI" icon={<Gauge size={16} />}>
         <MeterGrid snapshot={currentSnapshot} now={now} wsLive={liveWebSocket} />
         <div className="live-focus-list"><div className="live-service-row"><span>Temperatura</span><strong>{formattedReading(currentSnapshot?.power.temperature, now, liveWebSocket)}</strong></div><div className="live-service-row"><span>CAN</span><strong>{adapterSimulated && liveWebSocket ? 'SIMULATO' : hardwareConnected ? currentSnapshot?.can.bus_state : 'NESSUN DATO ATTUALE'}</strong></div><div className="live-service-row"><span>Controller osservati</span><strong>{hardwareConnected ? currentSnapshot?.controllers.length ?? '—' : isSimulator && liveWebSocket ? currentSnapshot?.controllers.length ?? '—' : '—'}</strong></div><div className="live-service-row"><span>Clock domain</span><strong>{currentSnapshot?.clock_domain ?? '—'}</strong></div><div className="live-service-row"><span>Sequenza</span><strong>{currentSnapshot?.sequence ?? '—'}</strong></div></div>
@@ -217,6 +230,7 @@ export function RobotLive({ embedded = false }: { embedded?: boolean } = {}) {
 
     <footer className="live-footer" aria-label="Navigazione Live">
       <button type="button" onClick={() => setView('overview')} aria-pressed={view === 'overview'} className={view === 'overview' ? 'live-tab-active' : ''}><BodyIcon size={17}/><span>OVERVIEW</span></button>
+      <button type="button" onClick={() => setView('cage')} aria-pressed={view === 'cage'} className={view === 'cage' ? 'live-tab-active' : ''}><BodyIcon size={17}/><span>CORPO 3D</span></button>
       <button type="button" onClick={() => setView('signals')} aria-pressed={view === 'signals'} className={view === 'signals' ? 'live-tab-active' : ''}><BatteryCharging size={17}/><span>TELEMETRIA</span></button>
       <button type="button" onClick={() => setView('activity')} aria-pressed={view === 'activity'} className={view === 'activity' ? 'live-tab-active' : ''}><Activity size={17}/><span>EVENTI</span></button>
       <div className="live-footer-boundary"><ShieldCheck size={16}/><span>READ ONLY · ROBOT LIVE PREVIEW</span></div>

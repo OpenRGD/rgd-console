@@ -88,6 +88,7 @@ jobs:
           export CONSOLE_RC_SHA="$(git rev-parse HEAD)"
           docker compose --env-file /dev/null -f compose.rc-lab.yml -p openrgd-console-rc-lab config --quiet
           docker compose --env-file /dev/null -f compose.rc-lab.yml -p openrgd-console-rc-lab up --build -d
+          docker compose --env-file /dev/null -f compose.rc-lab.yml -p openrgd-console-rc-lab exec -T api sh -ec 'test "$(id -u)" = 10001; stat -c "%u:%g %a" /app/data; test -w /app/data'
           python3 scripts/rc_lab_smoke.py --seed-synthetic
           python3 scripts/doctor.py
       - name: Report and stop RC lab only

@@ -41,9 +41,21 @@ def call(path,*,data=None,content_type=None,write_header=True,expected=200,json_
         if response.code in (502,503,504) and data is None:
             raise OSError('Gateway starting or unavailable')
         require(response.headers.get('X-OpenRGD-Lab')==MARKER,'Wrong gateway; stop')
-        require(response.code==expected,f'{path}: expected HTTP {expected}, received {response.code}')
         raw=response.read(MAX_REPLY+1)
         require(len(raw)<=MAX_REPLY,'Response exceeds lab budget')
+        if response.code!=expected:
+            # Bounded error classification only; never print raw payload/paths.
+            detail=''
+            try:
+                err=json.loads(raw)
+                code=err.get('code')
+                if isinstance(code,str) and code.isascii() and len(code)<=80 and code.replace('_','').isalnum():
+                    detail='; code='+code
+                message=err.get('message','')
+                if isinstance(message,str) and ('Permission denied' in message or 'os error 13' in message):detail+='; permission denied'
+                elif isinstance(message,str) and ('Read-only file system' in message or 'os error 30' in message):detail+='; read-only filesystem'
+            except (ValueError,AttributeError):pass
+            raise RuntimeError(f'{path}: expected HTTP {expected}, received {response.code}{detail}')
         return json.loads(raw) if json_reply else raw
 
 def ready():

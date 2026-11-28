@@ -34,3 +34,7 @@ Rollback: `bash scripts/rc-lab.sh stop STOP-RC-LAB` stops only lab, retains its 
 ## PERIPH-CONSOLE-01 (28 November)
 
 The RC includes an offline-only Peripherals panel. See [consumer and cutover boundary](PERIPH-CONSOLE-01.md). The smoke waits for all nine web routes before synthetic API tests. No live PERIPH transport or new privileges.
+
+## Lab persistence gate (28 November)
+
+Earlier lab smoke reached all nine HTTP pages but first model import returned HTTP 500. The shared fresh-volume initialization ordering was ambiguous: Boot Manager also mounted the API's workspace read-only. The lab now uses no-copy on that read-only mount, orders API before Boot Manager, and verifies the API container UID and workspace writability before seeding. The API remains non-root, no permission broadening or production volume change. CI must prove the import path; the exact cause of the old HTTP 500 was not logged, so do not claim confirmed resolution until rerun. Error messages now classify bounded API error codes/permission failures without raw payloads or paths.

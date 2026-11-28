@@ -18,6 +18,8 @@ test('lab project is separate and no production configuration or device grants',
  assert.match(lab,/"127\.0\.0\.1:8188:8080"/);
  assert.match(lab,/CONSOLE_IMU_INGEST_TOKEN: ""/);
  assert.match(lab,/CONSOLE_IMU_ALLOWED_ROBOT_IDS: ""/);
+ assert.match(lab,/target: \/app\/console-data\n        read_only: true\n        volume:\n          nocopy: true/);
+ assert.match(lab,/depends_on:\n      - api\n    expose: \["8091"\]/);
  assert.doesNotMatch(lab,/127\.0\.0\.1:8088|\.\/config:|devices:|privileged: true|docker\.sock|network_mode: host|\/dev\/|restart: unless-stopped/);
  assert.match(gate,/X-OpenRGD-Lab "console-025a"/);
  assert.match(gate,/\/api\/v1\/imu\/observations \/api\/v1\/modules\/install \/api\/v1\/host-reports\/import/);

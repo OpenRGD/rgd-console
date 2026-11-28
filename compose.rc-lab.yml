@@ -91,8 +91,15 @@ services:
       OPENRGD_BOOT_DATA_DIR: /app/boot-data
       OPENRGD_RGD_BIN: /usr/local/bin/rgd
     volumes:
-      - console_data:/app/console-data:ro
+      - type: volume
+        source: console_data
+        target: /app/console-data
+        read_only: true
+        volume:
+          nocopy: true
       - boot_data:/app/boot-data
+    depends_on:
+      - api
     expose: ["8091"]
     networks: [boot-internal]
     group_add:

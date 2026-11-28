@@ -21,6 +21,7 @@ case "${1:-plan}" in
     test -z "$(docker volume ls -q --filter "label=com.docker.compose.project=$PROJECT")" || { echo "Lab volumes already exist; preserve and review before reuse"; exit 1; }
     "${dc[@]}" config --quiet
     "${dc[@]}" up --build -d
+    "${dc[@]}" exec -T api sh -ec 'test "$(id -u)" = 10001; stat -c "%u:%g %a" /app/data; test -w /app/data'
     "${dc[@]}" ps
     echo "Run python3 scripts/rc_lab_smoke.py before seeding."
     ;;

@@ -10,7 +10,7 @@ export function PeripheralsPanel({robotId}:{robotId:string}){
   if(!file)return;
   const revision=++seq.current;setSnapshot(null);setError('');
   try{if(!file.size||file.size>MAX_PERIPH_SNAPSHOT_BYTES)throw Error('size');
-   const raw=await file.text();if(revision!==seq.current)return;
+   const raw=new TextDecoder('utf-8',{fatal:true}).decode(await file.arrayBuffer());if(revision!==seq.current)return;
    setSnapshot(parsePeriphSnapshot(raw,robotId));
   }catch{if(revision===seq.current)setError('Snapshot rifiutato: formato, versione, correlazione o scope non compatibile.');}
  }

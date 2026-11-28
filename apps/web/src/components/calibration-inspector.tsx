@@ -18,11 +18,18 @@ const validEnvelope = (value: unknown): value is CalibrationInspection => {
     && result.source_integrity === 'canonical_not_verified'
     && inspected?.inspection_contract === 'console.passive-calibration.v0.4b'
     && inspected?.actuation_enabled === false
+    && inspected?.physical_calibration_certified === false
     && !!report && report.report_version === '0.2.0'
+    && report.profile_id === null && report.profile_state === null
+    && report.profile_binding === 'no_profile' && report.export_preview === null
+    && !!report.coverage && report.coverage.saved_evidence_fields === 0
     && report.current_robot_position_observed === false
     && report.physical_drift_evaluated === false
     && report.claims_physical_calibration_certified === false
-    && Array.isArray(report.parameters) && Array.isArray(report.findings);
+    && Array.isArray(report.parameters) && report.parameters.every(p => !!p && Array.isArray(p.stored_measurements)
+      && p.stored_measurements.length === 0 && (p.coverage === 'absent' || p.coverage === 'declared_only'))
+    && Array.isArray(report.findings) && Array.isArray(report.source_digests)
+    && report.source_digests.length > 0;
 };
 
 function stringifyValue(value: unknown): string {
@@ -76,7 +83,8 @@ export function CalibrationInspector({ ready }: { ready: boolean }) {
     void apiGet<CalibrationInspection | null>(`/robots/${encodeURIComponent(robotId)}/calibration/last`)
       .then(value => {
         if (!active) return;
-        if (value && validEnvelope(value)) setInspection(value);
+        if (value && validEnvelope(value) && value.robot_id === robotId) setInspection(value);
+        else if (value) setMessage('Report storico non compatibile con la policy passiva attuale; rieseguire l’ispezione. Nessun dato salvato viene cancellato.');
       }).catch(() => { if (active) setMessage('Report precedente non disponibile.'); })
       .finally(() => { if (active) setLoadingLast(false); });
     return () => { active = false; };
@@ -91,7 +99,7 @@ export function CalibrationInspector({ ready }: { ready: boolean }) {
     setRunning(true); setMessage(null);
     try {
       const payload = await apiWrite<CalibrationInspection>(`/robots/${encodeURIComponent(robotId)}/calibration/inspect`, {});
-      if (!validEnvelope(payload)) throw new Error('Risposta Calibration con invarianti di sicurezza inattesi');
+      if (!validEnvelope(payload) || payload.robot_id !== robotId) throw new Error('Risposta Calibration con invarianti di sicurezza inattesi');
       setInspection(payload);
     } catch (e) { setMessage(e instanceof Error ? e.message : 'Ispezione non disponibile'); }
     finally { setRunning(false); }
@@ -138,13 +146,13 @@ export function CalibrationInspector({ ready }: { ready: boolean }) {
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
             <CoverageCard name="CANDIDATI" count={inspectedReport.coverage.candidate_fields} hint="Parametri esaminati" />
             <CoverageCard name="DICHIARATI" count={inspectedReport.coverage.declared_fields} hint="Valori nel profilo" />
-            <CoverageCard name="STORICI" count={inspectedReport.coverage.saved_evidence_fields} hint="Evidenze salvate, non verificate fisicamente" />
+            <CoverageCard name="STORICI" count={inspectedReport.coverage.saved_evidence_fields} hint="Route senza profilo CAL: nessuna misura storica importata" />
             <CoverageCard name="SENZA MISURE" count={inspectedReport.coverage.without_saved_measurements} hint="Nessuna osservazione storica" />
             <CoverageCard name="ANOMALIE" count={inspectedReport.findings.filter(x => x.severity === 'warning').length} hint="Coerenza dichiarativa" />
           </div>
           <div className="rounded-xl border border-amber/25 bg-amber/5 p-4 text-xs leading-5 text-amber">
             <p className="flex items-center gap-2 font-semibold"><AlertTriangle size={16} /> Esito non certificato</p>
-            <p className="mt-2">Sorgente RGD: integrità canonica non verificata. Nessuna posizione reale osservata, nessuna deriva misurata, nessuna calibrazione approvata. <strong>Movimenti disabilitati.</strong></p>
+            <p className="mt-2">Sorgente RGD: integrità canonica non verificata. Report dichiarativo salvato; per rivalidare i byte della sorgente rieseguire l’ispezione. Nessuna posizione reale osservata, nessuna deriva misurata, nessuna calibrazione approvata. <strong>Movimenti disabilitati.</strong></p>
             <p className="mono mt-2 break-all text-[10px] text-muted">Archivio SHA-256: {inspection.source_profile_sha256}</p>
           </div>
           <div className="space-y-3">

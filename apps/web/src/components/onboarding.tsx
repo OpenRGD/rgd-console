@@ -8,6 +8,7 @@ import {
 } from 'lucide-react';
 import type { BindingDraft, DiscoveryReport, HostInspection, HostInventory, InstallationDiagnostics, ImportedModel, ReadinessReport, RgdHalInspection, RobotRecord } from '@/lib/contracts';
 import { apiGet, apiWrite } from '@/lib/api';
+import { describeNominalRpy, nominalRpyCoverage } from '@/lib/model-metadata';
 import { EmptyState, Panel, Pill, SectionHeading, StateBlock } from './ui';
 
 const STEPS = [
@@ -27,6 +28,7 @@ function FieldRow({ title, value, caption }: { title: string; value: string; cap
 }
 
 export function ModelSummary({ model, compact = false }: { model: ImportedModel; compact?: boolean }) {
+  const orientation = nominalRpyCoverage(model.joints);
   return <div className="space-y-4">
     <div className="grid gap-3 sm:grid-cols-3">
       <StateBlock title="Link dichiarati" value={String(model.links.length)} hint="Topologia nominale" icon={<BoxIcon size={17} />} />
@@ -39,11 +41,22 @@ export function ModelSummary({ model, compact = false }: { model: ImportedModel;
         <FieldRow title="Standard dichiarato" value={model.standard_version ?? 'Non dichiarato'} />
         <FieldRow title="Identità kernel" value={model.kernel_identity ?? 'Non presente'} />
         <FieldRow title="Import" value={model.profile_state.replaceAll('_', ' ')} />
+        <FieldRow title="ID importazione locale" value={model.model_id} caption="Derivato dall'archivio ZIP; non è un’identità fisica o Life." />
+        <FieldRow title="RPY nominale disponibile" value={`${orientation.declared}/${orientation.total}`} caption={`${orientation.unknown} articolazioni senza terna RPY disponibile. Un valore 0 / 0 / 0 è distinto da un dato non noto.`} />
         <FieldRow title="SHA-256 dell'archivio" value={model.source_sha256} caption="Non equivale all'integrity root canonico OpenRGD" />
       </div>
     </Panel>
-    {!compact && <Panel title="Articolazioni descritte" subtitle="Limiti nominali in radianti, quando esplicitamente presenti">
-      {model.joints.length ? <div className="max-h-[400px] overflow-auto"><table className="w-full min-w-[560px] text-left text-xs"><thead><tr className="border-b border-line text-muted"><th className="px-5 py-3">Joint</th><th className="px-4 py-3">Type</th><th className="px-4 py-3">Parent → Child</th><th className="px-5 py-3">Limits</th></tr></thead><tbody className="divide-y divide-line">{model.joints.map(j => <tr key={j.id}><td className="mono px-5 py-3 text-slate-100">{j.id}</td><td className="px-4 py-3 text-muted">{j.joint_type ?? '—'}</td><td className="mono px-4 py-3 text-muted">{j.parent_link ?? '?'} → {j.child_link ?? '?'}</td><td className="mono px-5 py-3 text-slate-300">{j.lower_limit == null ? '?' : j.lower_limit.toFixed(3)} … {j.upper_limit == null ? '?' : j.upper_limit.toFixed(3)}</td></tr>)}</tbody></table></div> : <EmptyState title="Articolazioni non presenti" message="Non genero giunti o geometrie non dichiarati nello standard." icon={<Layers3 size={20} />} />}
+    {!compact && <Panel title="Revisioni e provenienza" subtitle="Dimensioni indipendenti · stato di questa anteprima">
+      <div className="px-5 py-3 sm:px-6">
+        <FieldRow title="Root canonico della sorgente" value="Non verificato" caption="Il digest ZIP non sostituisce il verificatore Core." />
+        <FieldRow title="Revisione asset visuali" value="Non acquisita" caption="Manifest e mesh richiedono l’importatore VIS dedicato." />
+        <FieldRow title="Revisione as-built" value="Non acquisita" caption="Nessuna installazione fisica attestata da questa vista." />
+        <FieldRow title="Revisione di calibrazione" value="Non valutata in questa vista" caption="La fonte nominale non equivale a una misura CAL." />
+        <FieldRow title="Life / History" value="Non valutati in questa vista" caption="Nessuna continuità o Chronon viene dedotta dal modello." />
+      </div>
+    </Panel>}
+    {!compact && <Panel title="Articolazioni descritte" subtitle="Geometria nominale: RPY in radianti (roll / pitch / yaw), non posa osservata">
+      {model.joints.length ? <div className="max-h-[400px] overflow-auto"><table className="w-full min-w-[800px] text-left text-xs"><thead><tr className="border-b border-line text-muted"><th className="px-5 py-3">Joint</th><th className="px-4 py-3">Type</th><th className="px-4 py-3">Parent → Child</th><th className="px-4 py-3">RPY nominale (rad)</th><th className="px-5 py-3">Limiti angolari (rad)</th></tr></thead><tbody className="divide-y divide-line">{model.joints.map(j => <tr key={j.id}><td className="mono px-5 py-3 text-slate-100">{j.id}</td><td className="px-4 py-3 text-muted">{j.joint_type ?? '—'}</td><td className="mono px-4 py-3 text-muted">{j.parent_link ?? '?'} → {j.child_link ?? '?'}</td><td className="mono px-4 py-3 text-slate-300">{describeNominalRpy(j.origin_rpy_rad)}</td><td className="mono px-5 py-3 text-slate-300">{j.lower_limit == null ? '?' : j.lower_limit.toFixed(3)} … {j.upper_limit == null ? '?' : j.upper_limit.toFixed(3)}</td></tr>)}</tbody></table></div> : <EmptyState title="Articolazioni non presenti" message="Non genero giunti o geometrie non dichiarati nello standard." icon={<Layers3 size={20} />} />}
     </Panel>}
     <div className="rounded-xl border border-amber/20 bg-amber/5 p-4 text-xs leading-5 text-amber">
       <p className="flex items-center gap-2 font-semibold"><CircleAlert size={15} /> Integrità canonica non verificata</p>

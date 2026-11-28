@@ -196,6 +196,10 @@ pub struct RgdJoint {
     pub parent_link: Option<String>,
     pub child_link: Option<String>,
     pub origin_xyz_m: Option<Vec<f64>>,
+    /// Source-declared joint frame rotation, RPY radians; None is UNKNOWN,
+    /// NOT an implicit calibrated [0,0,0] physical transform.
+    #[serde(default)]
+    pub origin_rpy_rad: Option<Vec<f64>>,
     pub axis_xyz: Option<Vec<f64>>,
     pub lower_limit: Option<f64>,
     pub upper_limit: Option<f64>,

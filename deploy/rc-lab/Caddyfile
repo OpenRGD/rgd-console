@@ -1,0 +1,22 @@
+:8080 {
+  encode zstd gzip
+  header {
+    X-OpenRGD-Lab "console-025a"
+    X-Content-Type-Options nosniff
+    X-Frame-Options DENY
+    Referrer-Policy no-referrer
+    -Server
+  }
+  # No live publishers, host reports, or runtime module installation here.
+  @blocked path /api/v1/imu/observations /api/v1/modules/install /api/v1/host-reports/import
+  handle @blocked {
+    respond "Disabled in acceptance lab" 403
+  }
+  @api path /api/* /healthz
+  handle @api {
+    reverse_proxy api:8080
+  }
+  handle {
+    reverse_proxy web:3000
+  }
+}

@@ -40,9 +40,16 @@
     "core": "afe1a831b950a4e6560f0285a0103fc4eaa343b7",
     "visual_director": "1cd2d4ba5b86dba428a89e18b1e31317db82cc6b",
     "visual_status": "2bc1374a17739f607851c8a0197d98a9b78f81cb",
-    "ri": "5372f758df79c93fc887f3858d878635447f4a4d"
+    "ri": "5372f758df79c93fc887f3858d878635447f4a4d",
+    "periph": "a36c2d7c42b0bb3f4b2e4c78b42b999be0fac6cd"
   },
   "production_release": false,
   "actuation_enabled": false,
-  "hardware_acceptance": false
+  "hardware_acceptance": false,
+  "periph_consumer": {
+    "version": "0.1.0-alpha.1",
+    "mode": "offline_read_only",
+    "lock": "release/periph-consumer-pin.json",
+    "runtime_activation": false
+  }
 }

@@ -3,6 +3,7 @@ export const SECTIONS = [
   { id: 'onboarding', label: 'Onboarding', description: 'Model-first setup' },
   { id: 'body', label: 'Body', description: 'Kinematics & joints' },
   { id: 'electronics', label: 'Electronics', description: 'Hardware signals' },
+  { id: 'peripherals', label: 'Peripherals', description: 'Read-only peripheral inventory' },
   { id: 'mind', label: 'Mind', description: 'Decision events' },
   { id: 'memory', label: 'Memory', description: 'Causal timeline' },
   { id: 'modules', label: 'Modules', description: 'Extensions registry' },

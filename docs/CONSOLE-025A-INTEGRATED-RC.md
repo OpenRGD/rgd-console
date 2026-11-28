@@ -30,3 +30,7 @@ Open http://127.0.0.1:8188. Existing lab containers or volumes cause start to re
 - [ ] Browser QA on Ubuntu, owner contract review, all exact-head CI, separate merge/release approval. Fedora/SO-101 later with own configuration.
 
 Rollback: `bash scripts/rc-lab.sh stop STOP-RC-LAB` stops only lab, retains its volumes/images. Verify 8088 independently. No prune, destructive volume removal or production restart. Production backup/restore and version/tag promotion are separate tasks. Keep individual PRs open until combined acceptance, then reconcile only verified history/superseded content.
+
+## PERIPH-CONSOLE-01 (28 November)
+
+The RC includes an offline-only Peripherals panel. See [consumer and cutover boundary](PERIPH-CONSOLE-01.md). The smoke waits for all nine web routes before synthetic API tests. No live PERIPH transport or new privileges.

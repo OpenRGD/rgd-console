@@ -13,12 +13,14 @@ import { SourceBadge, Pill, EmptyState } from './ui';
 import { Body, Electronics, Memory, Mind, Modules, Overview, Settings, type ConsoleData } from './sections';
 import { OnboardingWizard } from './onboarding';
 import { VoiceReadinessPanel } from './voice-readiness';
+import { PeripheralsPanel } from './peripherals-panel';
 
 const ICONS = {
   overview: LayoutDashboard,
   onboarding: FileUp,
   body: BodyIcon,
   electronics: Cpu,
+  peripherals: RadioTower,
   mind: BrainCircuit,
   memory: Database,
   modules: Layers3,
@@ -45,6 +47,7 @@ function RenderSection({ section, data }: { section: SectionId; data: ConsoleDat
     case 'overview': return <Overview {...data} />;
     case 'onboarding': return null; // rendered separately, may have no selected robot
     case 'electronics': return <Electronics {...data} />;
+    case 'peripherals': return <PeripheralsPanel key={data.robot.id} robotId={data.robot.id}/>;
     case 'body': return <Body {...data} />;
     case 'mind': return <Mind {...data} />;
     case 'memory': return <Memory {...data} />;

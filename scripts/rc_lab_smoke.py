@@ -13,6 +13,7 @@ BASE='http://127.0.0.1:8188'
 MARKER='console-025a'
 LAB_IDS={'rc-lab-sim','rc-lab-unbound'}
 MAX_REPLY=8*1024*1024
+PAGES=('/overview','/onboarding','/body','/live','/live/configure','/voice','/visual-effects','/boot','/peripherals')
 
 class NoRedirect(HTTPRedirectHandler):
     def redirect_request(self,req,fp,code,msg,headers,newurl):
@@ -52,6 +53,8 @@ def ready():
             require(h['ok'] is True and h['actuation_enabled'] is False,'API authority mismatch')
             call('/api/v1/boot/health')
             call('/api/v1/modules/agent-health')
+            for page in PAGES:
+                require(bool(call(page,json_reply=False)),f'Empty startup page {page}')
             return
         except (URLError,OSError,ValueError):
             if attempt==24: raise
@@ -71,9 +74,9 @@ def read_checks():
     require(LAB_IDS.issubset({r['id'] for r in robots}),'Missing synthetic registry')
     for r in robots:
         require(r['id'] in LAB_IDS or (r['id'].startswith('instance-') and r['adapter_id']=='console.unbound.v1'),'Non-lab registry; stop')
-    for path in ('/overview','/onboarding','/body','/live','/live/configure','/voice','/visual-effects','/boot'):
+    for path in PAGES:
         require(bool(call(path,json_reply=False)),f'Empty web route {path}')
-    print('PASS lab gateway, eight HTTP pages and non-actuating authority')
+    print('PASS lab gateway, nine HTTP pages and non-actuating authority')
     return robots
 
 def fixture(name,partial):

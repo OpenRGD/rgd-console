@@ -1,0 +1,22 @@
+{
+  "repository": "OpenRGD/rgd-periph",
+  "commit": "a36c2d7c42b0bb3f4b2e4c78b42b999be0fac6cd",
+  "version": "0.1.0-alpha.1",
+  "python_version": "0.1.0a1",
+  "schema_blobs": {
+    "contracts/console/v1/peripheral-action-result.v0.1-candidate.schema.json": "82b47c4d006bbdb96af00a12304723c9d3bf98bc",
+    "contracts/console/v1/peripheral-action.v0.1-candidate.schema.json": "e4b363f59a1e2130c54994e013440874847b00eb",
+    "contracts/console/v1/peripheral-host-allowlist.v0.1-candidate.schema.json": "bdf69f984d08021bb5101e8f7f790bf1ba143aaa",
+    "contracts/console/v1/peripheral-descriptor.v0.1-candidate.schema.json": "84ba411243c08ebbf06a0de22759d913d40ed6ec",
+    "contracts/console/v1/peripheral-status.v0.1-candidate.schema.json": "ec083ccec48ba47c1d9726480bac149ca6fb3e3c",
+    "contracts/console/v1/peripheral-host-request.v0.1-candidate.schema.json": "7a2dc7286f43ac4932b89a70910934fcf6efe69b",
+    "contracts/console/v1/peripheral-host-response.v0.1-candidate.schema.json": "b24fe1ad725547e19fae64ec7cc37d4d04efc49e"
+  },
+  "browser_validation": {
+    "ajv": "8.17.1",
+    "ajv_formats": "3.0.1"
+  },
+  "transport": "offline_replay_only",
+  "live_transport_authorized": false,
+  "legacy_domain": "retained_inactive"
+}

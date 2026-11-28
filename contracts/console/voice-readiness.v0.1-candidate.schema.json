@@ -1,0 +1,165 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:openrgd:console:voice-readiness:v0.1-candidate",
+  "title": "Manual Voice Lab readiness snapshot (NOT live / NOT robot authority)",
+  "description": "Operator-exported diagnostics only; excludes host identifiers, device names, audio, transcripts and credential fields. This does not claim a running Console-to-Voice connection.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "robot_id",
+    "generated_at_utc",
+    "source_kind",
+    "service_reachable",
+    "voice_lab_version",
+    "audio_available",
+    "input_device_count",
+    "output_device_count",
+    "ready_local_models",
+    "ready_cloud_models",
+    "piper_model_loaded",
+    "live_connection",
+    "non_actuating"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "console.voice-readiness.v0.1-candidate"
+    },
+    "robot_id": {
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9-]{0,63}$(?![\\s\\S])"
+    },
+    "generated_at_utc": {
+      "type": "string",
+      "format": "date-time",
+      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$(?![\\s\\S])"
+    },
+    "source_kind": {
+      "const": "manual_localhost_probe"
+    },
+    "service_reachable": {
+      "type": "boolean"
+    },
+    "voice_lab_version": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "pattern": "^[0-9]{1,10}[.][0-9]{1,10}[.][0-9]{1,10}$(?![\\s\\S])"
+    },
+    "audio_available": {
+      "type": [
+        "boolean",
+        "null"
+      ]
+    },
+    "input_device_count": {
+      "type": [
+        "integer",
+        "null"
+      ],
+      "minimum": 0,
+      "maximum": 100
+    },
+    "output_device_count": {
+      "type": [
+        "integer",
+        "null"
+      ],
+      "minimum": 0,
+      "maximum": 100
+    },
+    "ready_local_models": {
+      "type": [
+        "integer",
+        "null"
+      ],
+      "minimum": 0,
+      "maximum": 100
+    },
+    "ready_cloud_models": {
+      "type": [
+        "integer",
+        "null"
+      ],
+      "minimum": 0,
+      "maximum": 100
+    },
+    "piper_model_loaded": {
+      "type": [
+        "boolean",
+        "null"
+      ]
+    },
+    "live_connection": {
+      "const": false
+    },
+    "non_actuating": {
+      "const": true
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "service_reachable": {
+            "const": false
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "voice_lab_version": {
+            "type": "null"
+          },
+          "audio_available": {
+            "type": "null"
+          },
+          "input_device_count": {
+            "type": "null"
+          },
+          "output_device_count": {
+            "type": "null"
+          },
+          "ready_local_models": {
+            "type": "null"
+          },
+          "ready_cloud_models": {
+            "type": "null"
+          },
+          "piper_model_loaded": {
+            "type": "null"
+          }
+        }
+      },
+      "else": {
+        "properties": {
+          "voice_lab_version": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "audio_available": {
+            "not": {
+              "const": true
+            }
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "input_device_count": {
+            "type": "null"
+          },
+          "output_device_count": {
+            "type": "null"
+          }
+        }
+      }
+    }
+  ]
+}

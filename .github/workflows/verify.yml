@@ -27,10 +27,13 @@ jobs:
           node-version: '22'
       - run: node --test scripts/*.test.mjs
       - run: python3 -m unittest discover -s scripts -p 'test_host_snapshot.py' -v
+      - run: python3 -m unittest discover -s scripts -p 'test_voice_status.py' -v
       - run: python3 -m unittest discover -s scripts -p 'test_upgrade_v04a.py' -v
       - run: python3 -m unittest discover -s scripts -p 'test_upgrade_v04b.py' -v
       - run: python3 -m unittest discover -s scripts -p 'test_upgrade_v04c.py' -v
       - run: python3 -m unittest discover -s scripts -p 'test_upgrade_v04d.py' -v
+      - name: Install CAL local schema validation test dependency
+        run: python3 -m pip install 'jsonschema==4.23.0'
       - run: python3 -m unittest discover -s services/module-agent/tests -p 'test_*.py' -v
       - run: PYTHONPATH=services/boot-manager python3 -m unittest discover -s services/boot-manager -p 'test_*.py' -v
 
@@ -77,6 +80,23 @@ jobs:
       - name: Wait for Console API, Boot Manager and Module Agent
         run: python3 scripts/doctor.py
       - run: python3 scripts/boot-smoke.py
+      - name: Verify actual Module Agent image can load the pinned local CAL schemas
+        run: |
+          docker compose exec -T module-agent python3 -c 'from calibration_contract import validator_for, REPORT, PROFILE; validator_for(REPORT).check_schema(REPORT); validator_for(PROFILE).check_schema(PROFILE)'
+      - name: Build and test separate RC lab alongside standard stack
+        run: |
+          export CONSOLE_RC_SHA="$(git rev-parse HEAD)"
+          docker compose --env-file /dev/null -f compose.rc-lab.yml -p openrgd-console-rc-lab config --quiet
+          docker compose --env-file /dev/null -f compose.rc-lab.yml -p openrgd-console-rc-lab up --build -d
+          python3 scripts/rc_lab_smoke.py --seed-synthetic
+          python3 scripts/doctor.py
+      - name: Report and stop RC lab only
+        if: always()
+        run: |
+          export CONSOLE_RC_SHA="$(git rev-parse HEAD)"
+          docker compose --env-file /dev/null -f compose.rc-lab.yml -p openrgd-console-rc-lab ps || true
+          docker compose --env-file /dev/null -f compose.rc-lab.yml -p openrgd-console-rc-lab logs --tail=50 || true
+          docker compose --env-file /dev/null -f compose.rc-lab.yml -p openrgd-console-rc-lab down || true
       - name: Report containers and clean up
         if: always()
         run: |

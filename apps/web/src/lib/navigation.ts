@@ -6,6 +6,7 @@ export const SECTIONS = [
   { id: 'mind', label: 'Mind', description: 'Decision events' },
   { id: 'memory', label: 'Memory', description: 'Causal timeline' },
   { id: 'modules', label: 'Modules', description: 'Extensions registry' },
+  { id: 'voice', label: 'Voice Lab', description: 'Manual read-only diagnostics' },
   { id: 'settings', label: 'Settings', description: 'Console configuration' },
 ] as const;
 export type SectionId = typeof SECTIONS[number]['id'];

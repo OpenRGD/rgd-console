@@ -1,0 +1,48 @@
+{
+  "candidate": "CONSOLE-025A",
+  "status": "source_candidate_not_a_release",
+  "base_main": "b331dd32415eeda0d107676920a6dea91170cc4f",
+  "stable_release": "v0.4.3",
+  "stable_tag_commit": "a0ef857cf425c1bb14ad8f62acec21f8c1324866",
+  "components": [
+    {
+      "pr": 20,
+      "head": "9c4be5b7df65a2b6e7a986c3d2cf6e18f9c7a214"
+    },
+    {
+      "pr": 23,
+      "head": "168e99c2ba057ae78bfe4cbde7465c222eaa84de"
+    },
+    {
+      "pr": 15,
+      "head": "f0817728722a4377c597c61ebeb4ca4cea741cc3",
+      "included_by": 10
+    },
+    {
+      "pr": 10,
+      "head": "35d5b76e1637dec2076b6473bfa6964fe89ce321"
+    },
+    {
+      "pr": 18,
+      "head": "2046d0142ced9f7a5dd600764bdfd191a023d0c0"
+    }
+  ],
+  "reconciled_paths": [
+    ".github/workflows/verify.yml",
+    "apps/web/src/components/console-shell.tsx"
+  ],
+  "identical_overlap": [
+    "apps/web/tsconfig.json"
+  ],
+  "owner_dependencies": {
+    "calibration_candidate": "646dbc05bcefd15942b25bb55b3c99096f0cccc9",
+    "registry_calibration": "81700401e2fa6d370a86b6c1f5a48802bc5f1fc7",
+    "core": "afe1a831b950a4e6560f0285a0103fc4eaa343b7",
+    "visual_director": "1cd2d4ba5b86dba428a89e18b1e31317db82cc6b",
+    "visual_status": "2bc1374a17739f607851c8a0197d98a9b78f81cb",
+    "ri": "5372f758df79c93fc887f3858d878635447f4a4d"
+  },
+  "production_release": false,
+  "actuation_enabled": false,
+  "hardware_acceptance": false
+}

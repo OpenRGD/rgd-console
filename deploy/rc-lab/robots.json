@@ -1,0 +1,23 @@
+{
+  "registry_version": "console.robots.v1",
+  "robots": [
+    {
+      "id": "rc-lab-sim",
+      "name": "RC Lab — synthetic simulator",
+      "model": "Synthetic telemetry only",
+      "manufacturer": "OpenRGD Lab",
+      "kind": "simulated",
+      "adapter_id": "console.simulated.v1",
+      "rgt_model_ref": null
+    },
+    {
+      "id": "rc-lab-unbound",
+      "name": "RC Lab — unbound placeholder",
+      "model": "No hardware connected",
+      "manufacturer": "OpenRGD Lab",
+      "kind": "physical",
+      "adapter_id": "console.unbound.v1",
+      "rgt_model_ref": null
+    }
+  ]
+}

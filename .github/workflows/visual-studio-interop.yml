@@ -1,0 +1,49 @@
+name: CONSOLE-023E Visual consumer interop
+on:
+  pull_request:
+    paths:
+      - 'apps/web/src/components/visual-*.tsx'
+      - 'apps/web/src/components/expressive-eyes.tsx'
+      - 'apps/web/src/components/eye-composition-preview.tsx'
+      - 'apps/web/src/components/expression-catalog-manager.tsx'
+      - 'apps/web/src/lib/visual-*.ts'
+      - 'apps/web/src/lib/eye-composition-result.ts'
+      - 'apps/web/src/lib/catalog-snapshot.ts'
+      - 'scripts/*visual*'
+      - '.github/workflows/visual-studio-interop.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  pinned-visual-consumer:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/checkout@v4
+        with:
+          repository: OpenRGD/rgd-visual-feedback
+          ref: 1cd2d4ba5b86dba428a89e18b1e31317db82cc6b
+          path: _interop/visual
+          persist-credentials: false
+      - uses: actions/checkout@v4
+        with:
+          repository: OpenRGD/rgd-visual-feedback
+          ref: 2bc1374a17739f607851c8a0197d98a9b78f81cb
+          path: _interop/status
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Generate owner synthetic outputs only
+        run: |
+          test "$(git -C _interop/visual rev-parse HEAD)" = 1cd2d4ba5b86dba428a89e18b1e31317db82cc6b
+          test "$(git -C _interop/status rev-parse HEAD)" = 2bc1374a17739f607851c8a0197d98a9b78f81cb
+          python scripts/prepare_visual_consumer_fixtures.py --visual _interop/visual --status _interop/status --out _interop/fixtures
+      - name: Exercise actual browser consumer validators, no browser or hardware
+        run: node --experimental-strip-types scripts/check_visual_consumer_fixtures.mjs _interop/fixtures

@@ -5,6 +5,7 @@ on:
       - 'scripts/ri_periph_compat.py'
       - 'scripts/tests/test_ri_periph_compat.py'
       - '.github/workflows/periph-ri-compat.yml'
+      - '.github/workflows/verify.yml' # integrated baseline changes
       - 'docs/handoffs/PERIPH-TO-RI.md'
   workflow_dispatch:
 permissions:
